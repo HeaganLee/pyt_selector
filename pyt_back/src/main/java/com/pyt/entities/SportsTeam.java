@@ -26,7 +26,7 @@ import lombok.Setter;
         @UniqueConstraint(name = "uk_team_sport_name_level", columnNames = { "sport_type", "name",
                 "league_level_type" })
 })
-public class SportsTeam extends BaseTimeEntity {
+public class SportsTeam {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 
 import com.pyt.entities.bases.BaseTimeEntity;
 import com.pyt.enums.ActiveStatus;
+import com.pyt.enums.LeagueLevelType;
 import com.pyt.enums.SportType;
 
 import jakarta.persistence.Column;
@@ -29,7 +30,7 @@ import lombok.Setter;
 @Table(name = "players", uniqueConstraints = {
         @UniqueConstraint(name = "uk_player_sport_name_birth", columnNames = { "sport_type", "name", "birth_date" })
 })
-public class Player extends BaseTimeEntity {
+public class Player {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,6 +55,10 @@ public class Player extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "current_team_id")
     private SportsTeam currentTeam;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "current_level", nullable = false, length = 30)
+    private LeagueLevelType currentLevel;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "active_status", nullable = false, length = 20)

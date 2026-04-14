@@ -1,7 +1,6 @@
 package com.pyt.entities;
 
 import com.pyt.entities.bases.BaseTimeEntity;
-import com.pyt.enums.BoxType;
 import com.pyt.enums.SportType;
 
 import jakarta.persistence.Column;
@@ -23,8 +22,8 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "card_boxes")
-public class CardBox extends BaseTimeEntity {
+@Table(name = "card_products")
+public class CardProduct extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -47,35 +46,18 @@ public class CardBox extends BaseTimeEntity {
     @Column(name = "release_year", nullable = false)
     private Integer releaseYear;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "box_type", nullable = false, length = 30)
-    private BoxType boxType;
-
-    @Column(name = "cards_per_pack")
-    private Integer cardsPerPack;
-
-    @Column(name = "packs_per_box")
-    private Integer packsPerBox;
-
-    @Column(name = "boxes_per_case")
-    private Integer boxesPerCase;
-
     @Column(name = "checklist_url", length = 500)
     private String checklistUrl;
 
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
-    public CardBox(
+    public CardProduct(
             CardCompany cardCompany,
             SportType sportType,
             String brandName,
             String productName,
             Integer releaseYear,
-            BoxType boxType,
-            Integer cardsPerPack,
-            Integer packsPerBox,
-            Integer boxesPerCase,
             String checklistUrl,
             String imageUrl) {
         this.cardCompany = cardCompany;
@@ -83,10 +65,6 @@ public class CardBox extends BaseTimeEntity {
         this.brandName = brandName;
         this.productName = productName;
         this.releaseYear = releaseYear;
-        this.boxType = boxType;
-        this.cardsPerPack = cardsPerPack;
-        this.packsPerBox = packsPerBox;
-        this.boxesPerCase = boxesPerCase;
         this.checklistUrl = checklistUrl;
         this.imageUrl = imageUrl;
     }

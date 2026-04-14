@@ -25,18 +25,18 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @Entity
-@Table(name = "box_team_tiers", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_box_team_tier_box_team", columnNames = { "card_box_id", "team_id" })
+@Table(name = "card_product_team_tiers", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_card_product_team_tier_criteria_team", columnNames = { "tier_criteria_id",
+                "team_id" })
 })
-public class BoxTeamTier extends BaseTimeEntity {
-
+public class CardProductTeamTier extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "card_box_id", nullable = false)
-    private CardBox cardBox;
+    @JoinColumn(name = "tier_criteria_id", nullable = false)
+    private CardProductTierCriteria tierCriteria;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "team_id", nullable = false)
@@ -46,38 +46,32 @@ public class BoxTeamTier extends BaseTimeEntity {
     private BigDecimal expectedPytPrice;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "high_end_tier", nullable = false, length = 10)
-    private TierGrade highEndTier;
+    @Column(name = "tier_grade", nullable = false, length = 10)
+    private TierGrade tierGrade;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "value_tier", nullable = false, length = 10)
-    private TierGrade valueTier;
+    @Column(name = "key_players", length = 1000)
+    private String keyPlayers;
 
-    @Column(name = "high_end_comment", length = 1000)
-    private String highEndComment;
-
-    @Column(name = "value_comment", length = 1000)
-    private String valueComment;
+    @Column(name = "comment_text", length = 1000)
+    private String commentText;
 
     @Column(name = "ai_summary", length = 2000)
     private String aiSummary;
 
-    public BoxTeamTier(
-            CardBox cardBox,
+    public CardProductTeamTier(
+            CardProductTierCriteria tierCriteria,
             SportsTeam team,
             BigDecimal expectedPytPrice,
-            TierGrade highEndTier,
-            TierGrade valueTier,
-            String highEndComment,
-            String valueComment,
+            TierGrade tierGrade,
+            String keyPlayers,
+            String commentText,
             String aiSummary) {
-        this.cardBox = cardBox;
+        this.tierCriteria = tierCriteria;
         this.team = team;
         this.expectedPytPrice = expectedPytPrice;
-        this.highEndTier = highEndTier;
-        this.valueTier = valueTier;
-        this.highEndComment = highEndComment;
-        this.valueComment = valueComment;
+        this.tierGrade = tierGrade;
+        this.keyPlayers = keyPlayers;
+        this.commentText = commentText;
         this.aiSummary = aiSummary;
     }
 }
