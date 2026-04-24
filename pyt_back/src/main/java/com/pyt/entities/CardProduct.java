@@ -1,5 +1,7 @@
 package com.pyt.entities;
 
+import java.time.LocalDate;
+
 import com.pyt.entities.bases.BaseTimeEntity;
 import com.pyt.enums.SportType;
 
@@ -43,8 +45,8 @@ public class CardProduct extends BaseTimeEntity {
     @Column(name = "product_name", nullable = false, length = 150)
     private String productName;
 
-    @Column(name = "release_year", nullable = false)
-    private Integer releaseYear;
+    @Column(name = "release_date")
+    private LocalDate releaseDate;
 
     @Column(name = "checklist_url", length = 500)
     private String checklistUrl;
@@ -57,14 +59,14 @@ public class CardProduct extends BaseTimeEntity {
             SportType sportType,
             String brandName,
             String productName,
-            Integer releaseYear,
+            LocalDate releaseDate,
             String checklistUrl,
             String imageUrl) {
         this.cardCompany = cardCompany;
         this.sportType = sportType;
         this.brandName = brandName;
         this.productName = productName;
-        this.releaseYear = releaseYear;
+        this.releaseDate = releaseDate;
         this.checklistUrl = checklistUrl;
         this.imageUrl = imageUrl;
     }
