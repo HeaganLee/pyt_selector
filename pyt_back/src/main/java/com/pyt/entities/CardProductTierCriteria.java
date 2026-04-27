@@ -1,5 +1,8 @@
 package com.pyt.entities;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.pyt.entities.bases.BaseTimeEntity;
 import com.pyt.enums.TierCriteriaType;
 
@@ -13,6 +16,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
@@ -45,6 +49,9 @@ public class CardProductTierCriteria extends BaseTimeEntity {
 
     @Column(name = "description", length = 1000)
     private String description;
+
+    @OneToMany(mappedBy = "tierCriteria")
+    private List<CardProductTeamTier> teamTiers = new ArrayList<>();
 
     public CardProductTierCriteria(
             CardProduct cardProduct,

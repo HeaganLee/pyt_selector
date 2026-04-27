@@ -1,6 +1,8 @@
 package com.pyt.entities;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.pyt.entities.bases.BaseTimeEntity;
 import com.pyt.enums.SportType;
@@ -15,6 +17,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -54,6 +57,9 @@ public class CardProduct extends BaseTimeEntity {
     @Column(name = "image_url", length = 500)
     private String imageUrl;
 
+    @OneToMany(mappedBy = "cardProduct")
+    private List<CardProductTierCriteria> tierCriteria = new ArrayList<>();
+
     public CardProduct(
             CardCompany cardCompany,
             SportType sportType,
@@ -70,4 +76,5 @@ public class CardProduct extends BaseTimeEntity {
         this.checklistUrl = checklistUrl;
         this.imageUrl = imageUrl;
     }
+
 }

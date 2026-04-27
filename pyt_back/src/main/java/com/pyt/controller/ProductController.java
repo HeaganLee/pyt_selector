@@ -1,9 +1,11 @@
 package com.pyt.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.pyt.dto.ProductDetailRespDto;
 import com.pyt.service.ProductService;
 
 import lombok.RequiredArgsConstructor;
@@ -18,11 +20,14 @@ public class ProductController {
     @GetMapping
     public Object getCardProducts() {
         try {
-            System.out.println("전송");
             return productService.getProductItems();
         } catch (Exception e) {
-            System.out.println("error>> " + e.getMessage());
             return e.getMessage();
         }
+    }
+
+    @GetMapping("/{productId}")
+    public ProductDetailRespDto getProductDetail(@PathVariable Long productId) {
+        return productService.getProductDetail(productId);
     }
 }

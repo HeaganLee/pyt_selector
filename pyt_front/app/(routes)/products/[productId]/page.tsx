@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 type TierGrade = 'S' | 'A' | 'B' | 'C' | 'D';
 
@@ -28,56 +29,10 @@ interface ProductDetail {
   productName: string;
   releaseYear: number;
   releaseDate: string;
-  status: 'ON_SALE' | 'UPCOMING';
+  status: 'ON_SALE' | 'UPCOMING' | 'ENDED';
   imageUrl: string;
   tierCriteria: TierCriteria[];
 }
-
-const mockProducts: ProductDetail[] = [
-  {
-    id: 1,
-    brandName: 'Topps Bowman',
-    productName: 'Baseball',
-    releaseYear: 2026,
-    releaseDate: '2026-05-13',
-    status: 'ON_SALE',
-    imageUrl: 'https://via.placeholder.com/300x420?text=2026+Bowman+Baseball',
-    tierCriteria: [
-      {
-        id: 1,
-        criteriaType: 'PROSPECT_ONLY',
-        criteriaName: '프로스펙트 기준',
-        description: '프로스펙트 선수 전체를 기준으로 본 팀 티어표',
-        teamTiers: [
-          {
-            id: 1,
-            teamName: 'Pittsburgh Pirates',
-            tierGrade: 'S',
-            keyPlayers: 'Konnor Griffin, Edward Florentino, Wyatt Sanford',
-            commentText: '최상위 헤드라이너와 보조 prospect 깊이가 모두 강한 팀',
-            aiSummary: '순수 prospect 기준 최상위 팀',
-          },
-          {
-            id: 2,
-            teamName: 'Milwaukee Brewers',
-            tierGrade: 'S',
-            keyPlayers: 'Andrew Fischer, Brailyn Antunez, Luis Peña',
-            commentText: '상위권 유망주 수량과 뎁스가 매우 좋은 팀',
-            aiSummary: '신규성과 뎁스를 모두 갖춘 강한 팀',
-          },
-          {
-            id: 3,
-            teamName: 'Baltimore Orioles',
-            tierGrade: 'A',
-            keyPlayers: 'Wehiwa Aloy, Andrew Tess, Esteban Mejia',
-            commentText: '상단과 중간층 prospect 구성이 고르게 좋은 팀',
-            aiSummary: '상위권 평가',
-          },
-        ],
-      },
-    ],
-  },
-];
 
 const tierOrder: Record<TierGrade, number> = {
   S: 0,
@@ -91,7 +46,31 @@ export default function ProductDetailPage() {
   const params = useParams<{ productId: string }>();
   const productId = Number(params.productId);
 
-  const product = mockProducts.find((item) => item.id === productId);
+  const [product, setProduct] = useState<ProductDetail | null>(null);
+
+
+  useEffect(() => {
+    if (!productId) return;
+
+    const fetchData = async () => {
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SERVER_URL}/product/${productId}`
+        );
+
+        if (!response.ok) return;
+
+        const result = await response.json();
+        console.log('result>> ', result)
+        setProduct(result);
+
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    fetchData();
+  }, [productId]);
 
   if (!product) {
     return (
@@ -99,93 +78,185 @@ export default function ProductDetailPage() {
         <Link href="/" className="text-sm font-medium text-blue-600 hover:underline">
           ← 메인으로 돌아가기
         </Link>
+
         <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-8">
-          <h1 className="text-2xl font-bold text-gray-900">상품을 찾을 수 없습니다.</h1>
-          <p className="mt-2 text-sm text-gray-600">존재하지 않는 상품 ID입니다.</p>
+          <h1 className="text-2xl font-bold text-gray-900">상품을 불러오는 중입니다.</h1>
         </div>
       </main>
     );
   }
 
-  const defaultCriteria = product.tierCriteria[0];
-  const sortedTeamTiers = [...defaultCriteria.teamTiers].sort(
-    (a, b) => tierOrder[a.tierGrade] - tierOrder[b.tierGrade]
-  );
-
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+  <main className="min-h-screen bg-[#f6f3ee]">
+    <div className="mx-auto max-w-7xl px-6 py-8">
       <div className="mb-6">
-        <Link href="/" className="text-sm font-medium text-blue-600 hover:underline">
+        <Link
+          href="/"
+          className="inline-flex items-center rounded-full border border-black bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-black hover:text-white"
+        >
           ← 메인으로 돌아가기
         </Link>
       </div>
 
-      <section className="grid gap-8 lg:grid-cols-[320px_1fr]">
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="aspect-[3/4] w-full bg-gray-100">
-            <img
-              src={product.imageUrl}
-              alt={`${product.releaseYear} ${product.brandName} ${product.productName}`}
-              className="h-full w-full object-cover"
-            />
-          </div>
-        </div>
-
-        <div>
-          <div className="mb-3">
-            <span
-              className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                product.status === 'ON_SALE'
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'bg-orange-100 text-orange-700'
-              }`}
-            >
-              {product.status === 'ON_SALE' ? '현재 발매중' : '발매 예정'}
-            </span>
+      <section className="overflow-hidden rounded-[28px] border border-black bg-white shadow-[8px_8px_0_#111]">
+        <div className="grid gap-0 lg:grid-cols-[360px_1fr]">
+          <div className="border-b border-black bg-[#eee8df] p-6 lg:border-b-0 lg:border-r">
+            <div className="overflow-hidden rounded-2xl border border-black bg-white">
+              <div className="aspect-[3/4] w-full bg-[#f1eee8]">
+                {product.imageUrl ? (
+                  <img
+                    src={product.imageUrl}
+                    alt={`${product.releaseYear} ${product.brandName} ${product.productName}`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-sm font-bold text-gray-500">
+                    No Image
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900">
-            {product.releaseYear} {product.brandName} {product.productName}
-          </h1>
+          <div className="flex flex-col justify-center p-8 lg:p-12">
+            <div className="mb-4">
+              <span
+                className={`inline-flex rounded-full border px-3 py-1 text-xs font-black tracking-wide ${
+                  product.status === 'ON_SALE'
+                    ? 'border-[#d71920] bg-[#d71920] text-white'
+                    : product.status === 'UPCOMING'
+                      ? 'border-black bg-[#ffd84d] text-black'
+                      : 'border-gray-500 bg-gray-200 text-gray-700'
+                }`}
+              >
+                {product.status === 'ON_SALE'
+                  ? '현재 발매중'
+                  : product.status === 'UPCOMING'
+                    ? '발매 예정'
+                    : '발매 종료'}
+              </span>
+            </div>
 
-          <div className="mt-4 space-y-2 text-sm text-gray-600">
-            <p>발매일: {product.releaseDate}</p>
-            <p>상품 ID: {product.id}</p>
+            <p className="mb-3 text-sm font-black uppercase tracking-[0.25em] text-[#d71920]">
+              PYT Product
+            </p>
+
+            <h1 className="max-w-3xl text-4xl font-black leading-tight text-black lg:text-5xl">
+              {product.releaseYear} {product.brandName} {product.productName}
+            </h1>
+
+            <div className="mt-6 grid gap-3 text-sm font-semibold text-gray-800 sm:grid-cols-2">
+              <div className="rounded-xl border border-black bg-[#f6f3ee] px-4 py-3">
+                <span className="block text-xs font-black uppercase text-gray-500">
+                  Release Date
+                </span>
+                {product.releaseDate}
+              </div>
+
+              <div className="rounded-xl border border-black bg-[#f6f3ee] px-4 py-3">
+                <span className="block text-xs font-black uppercase text-gray-500">
+                  Product ID
+                </span>
+                #{product.id}
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="mt-12">
-        <h2 className="mb-4 text-2xl font-bold text-gray-900">
-          {defaultCriteria.criteriaName}
-        </h2>
-        <p className="mb-6 text-sm text-gray-600">{defaultCriteria.description}</p>
-
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="border-b px-4 py-3 text-left text-sm font-semibold">Tier</th>
-                  <th className="border-b px-4 py-3 text-left text-sm font-semibold">Team</th>
-                  <th className="border-b px-4 py-3 text-left text-sm font-semibold">Key Players</th>
-                  <th className="border-b px-4 py-3 text-left text-sm font-semibold">Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedTeamTiers.map((teamTier) => (
-                  <tr key={teamTier.id}>
-                    <td className="border-b px-4 py-3 text-sm font-bold">{teamTier.tierGrade}</td>
-                    <td className="border-b px-4 py-3 text-sm">{teamTier.teamName}</td>
-                    <td className="border-b px-4 py-3 text-sm">{teamTier.keyPlayers}</td>
-                    <td className="border-b px-4 py-3 text-sm">{teamTier.commentText}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <section className="mt-14">
+        {product.tierCriteria.length === 0 ? (
+          <div className="rounded-2xl border-2 border-dashed border-black bg-white px-6 py-10 text-center text-sm font-bold text-gray-600">
+            등록된 티어 기준이 없습니다.
           </div>
-        </div>
+        ) : (
+          <div className="space-y-12">
+            {product.tierCriteria.map((criteria) => {
+              const sortedTeamTiers = [...(criteria.teamTiers ?? [])].sort(
+                (a, b) => tierOrder[a.tierGrade] - tierOrder[b.tierGrade]
+              );
+
+              return (
+                <section
+                  key={criteria.id}
+                  className="overflow-hidden rounded-[24px] border border-black bg-white shadow-[6px_6px_0_#111]"
+                >
+                  <div className="border-b border-black bg-black px-6 py-5 text-white">
+                    <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ff4b4b]">
+                      Tier Criteria
+                    </p>
+
+                    <h2 className="mt-2 text-2xl font-black">
+                      {criteria.criteriaName}
+                    </h2>
+
+                    <p className="mt-2 text-sm text-gray-300">
+                      {criteria.description}
+                    </p>
+                  </div>
+
+                  {sortedTeamTiers.length === 0 ? (
+                    <div className="bg-[#f6f3ee] px-6 py-10 text-center text-sm font-bold text-gray-500">
+                      등록된 팀 티어가 없습니다.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto bg-white">
+                      <table className="min-w-full border-collapse">
+                        <thead>
+                          <tr className="bg-[#d71920] text-white">
+                            <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
+                              Tier
+                            </th>
+                            <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
+                              Team
+                            </th>
+                            <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
+                              Key Players
+                            </th>
+                            <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
+                              Comment
+                            </th>
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {sortedTeamTiers.map((teamTier, index) => (
+                            <tr
+                              key={teamTier.id}
+                              className={
+                                index % 2 === 0 ? 'bg-white' : 'bg-[#f6f3ee]'
+                              }
+                            >
+                              <td className="border-b border-gray-300 px-5 py-4">
+                                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-black bg-black text-sm font-black text-white">
+                                  {teamTier.tierGrade}
+                                </span>
+                              </td>
+
+                              <td className="border-b border-gray-300 px-5 py-4 text-sm font-black text-black">
+                                {teamTier.teamName}
+                              </td>
+
+                              <td className="border-b border-gray-300 px-5 py-4 text-sm font-semibold text-gray-800">
+                                {teamTier.keyPlayers}
+                              </td>
+
+                              <td className="border-b border-gray-300 px-5 py-4 text-sm text-gray-700">
+                                {teamTier.commentText}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
+        )}
       </section>
-    </main>
-  );
+    </div>
+  </main>
+);
 }
