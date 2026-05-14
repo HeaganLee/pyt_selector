@@ -4,7 +4,10 @@ public enum TierCriteriaType {
     PROSPECT,
     FIRST_PROSPECT,
     SUPERSTAR_AND_PROSPECT,
-    HIGH_END_CARD,
-    VALUE_FOR_MONEY,
-    CUSTOM
+    PROSPECT_ROOKIE,
+    ROOKIE_SUPERSTAR,
+    SUPERSTAR,
+    ROOKIE,
+    VALUE,
+    HIGH_END
 }

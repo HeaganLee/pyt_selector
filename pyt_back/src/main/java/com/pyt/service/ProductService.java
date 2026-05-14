@@ -21,15 +21,17 @@ public class ProductService {
 
     public List<CardProductRespDto> getProductItems() {
         LocalDate today = LocalDate.now();
-        LocalDate oneMonthLater = today.plusMonths(1);
 
-        List<CardProductRespDto> resultList = cardProductRepository
-                .findByReleaseDateBetweenOrderByReleaseDateAsc(today, oneMonthLater)
+        LocalDate onSaleStartDate = today.minusDays(14);
+        LocalDate upcomingEndDate = today.plusMonths(1);
+
+        return cardProductRepository
+                .findByReleaseDateBetweenOrderByReleaseDateAsc(
+                        onSaleStartDate,
+                        upcomingEndDate)
                 .stream()
                 .map(CardProductRespDto::new)
                 .toList();
-
-        return resultList;
     }
 
     @Transactional(readOnly = true)

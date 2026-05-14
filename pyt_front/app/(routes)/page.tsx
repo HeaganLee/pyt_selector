@@ -114,6 +114,7 @@ export default function HomePage() {
       }
 
       const result: ProductItem[] = await response.json();
+      console.log('result>> ', result);
       setProducts(result);
     } catch (error) {
       console.error(error);
