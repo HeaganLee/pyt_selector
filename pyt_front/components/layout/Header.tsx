@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 const leagueItems = [
   { label: '전체', href: '/products' },
@@ -130,6 +130,33 @@ function CartIcon() {
 export default function Header() {
   const pathname = usePathname();
 
+  const router = useRouter();
+
+  const getCookie = (key: string) => {
+    if (typeof document === 'undefined') return null;
+
+    const cookies = document.cookie.split('; ');
+
+    const targetCookie = cookies.find((cookie) =>
+      cookie.startsWith(`${key}=`)
+    );
+
+    if (!targetCookie) return null;
+
+    return decodeURIComponent(targetCookie.split('=')[1]);
+  };
+
+  const handleMypageClick = () => {
+    const token = getCookie('UT');
+
+    if (token) {
+      router.push('/mypage');
+      return;
+    }
+
+    router.push('/login');
+  };
+
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white">
       <div className="mx-auto flex h-[88px] max-w-[1920px] items-center px-10">
@@ -193,6 +220,7 @@ export default function Header() {
 
           <button
             type="button"
+            onClick={handleMypageClick}
             className="text-black transition hover:text-[#d71920]"
             aria-label="마이페이지"
           >
