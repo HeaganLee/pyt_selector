@@ -8,8 +8,8 @@ import io.github.cdimascio.dotenv.Dotenv;
 @SpringBootApplication
 public class PytBackApplication {
 
-	public static void main(String[] args) {
-		 Dotenv dotenv = Dotenv.configure()
+    public static void main(String[] args) {
+        Dotenv dotenv = Dotenv.configure()
                 .directory("./")
                 .ignoreIfMalformed()
                 .ignoreIfMissing()
@@ -20,8 +20,10 @@ public class PytBackApplication {
         setIfPresent(dotenv, "DB_NAME");
         setIfPresent(dotenv, "DB_USER_NAME");
         setIfPresent(dotenv, "DB_PASSWORD");
-		SpringApplication.run(PytBackApplication.class, args);
-	}
+        setIfPresent(dotenv, "JWT_SECRET");
+        setIfPresent(dotenv, "JWT_ACCESS_TOKEN_EXPIRATION_MS");
+        SpringApplication.run(PytBackApplication.class, args);
+    }
 
     private static void setIfPresent(Dotenv dotenv, String key) {
         String value = dotenv.get(key);

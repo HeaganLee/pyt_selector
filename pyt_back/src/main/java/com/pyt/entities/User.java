@@ -29,8 +29,8 @@ import lombok.Setter;
 public class User extends BaseTimeEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
 
     /**
      * 로그인 아이디 또는 이메일
@@ -63,7 +63,7 @@ public class User extends BaseTimeEntity {
     private String phoneNumber;
 
     @Column(name = "registered_at", nullable = false)
-    private LocalDateTime registeredAt;
+    private LocalDateTime registeredAt = LocalDateTime.now();
 
     /**
      * 프로필 이미지 URL
@@ -89,6 +89,7 @@ public class User extends BaseTimeEntity {
             String nickname,
             String phoneNumber,
             String profileImageUrl,
+            UserRoleType userRoleType,
             ActiveStatus activeStatus) {
         this.email = email;
         this.password = password;
@@ -96,6 +97,7 @@ public class User extends BaseTimeEntity {
         this.nickname = nickname;
         this.phoneNumber = phoneNumber;
         this.profileImageUrl = profileImageUrl;
+        this.userRoleType = userRoleType;
         this.activeStatus = activeStatus;
     }
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Cookies from 'js-cookie';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useState } from 'react';
@@ -14,54 +15,75 @@ export default function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setErrorMessage('');
+  event.preventDefault();
+  setErrorMessage('');
 
-    if (!email.trim()) {
-      setErrorMessage('이메일을 입력해주세요.');
-      return;
-    }
+  if (!email.trim()) {
+    setErrorMessage('이메일을 입력해주세요.');
+    return;
+  }
 
-    if (!password.trim()) {
-      setErrorMessage('비밀번호를 입력해주세요.');
-      return;
-    }
+  if (!password.trim()) {
+    setErrorMessage('비밀번호를 입력해주세요.');
+    return;
+  }
 
-    try {
-      setIsLoading(true);
+  try {
+    setIsLoading(true);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('로그인에 실패했습니다.');
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/auth/login`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
       }
+    );
 
-      const result = await response.json();
-
-      if (result.accessToken) {
-        localStorage.setItem('accessToken', result.accessToken);
-      }
-
-      router.push('/');
-    } catch (error) {
-      console.error(error);
-      setErrorMessage('이메일 또는 비밀번호를 확인해주세요.');
-    } finally {
-      setIsLoading(false);
+    if (!response.ok) {
+      throw new Error('로그인에 실패했습니다.');
     }
-  };
+
+    const result = await response.json();
+
+    Cookies.set('accessToken', result.accessToken, {
+      expires: 1,
+      path: '/',
+    });
+
+    Cookies.set('email', result.email, {
+      expires: 1,
+      path: '/',
+    });
+
+    Cookies.set('nickname', result.nickname ?? '', {
+      expires: 1,
+      path: '/',
+    });
+
+    Cookies.set('userRoleType', result.userRoleType, {
+      expires: 1,
+      path: '/',
+    });
+
+    Cookies.set('profileImageUrl', result.profileImageUrl ?? '', {
+      expires: 1,
+      path: '/',
+    });
+
+    router.push('/');
+  } catch (error) {
+    console.error(error);
+    setErrorMessage('이메일 또는 비밀번호를 확인해주세요.');
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <main className="min-h-[calc(100vh-88px)] bg-[#f6f3ee] px-5 py-16">
