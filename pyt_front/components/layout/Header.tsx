@@ -4,12 +4,12 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
 const leagueItems = [
-  { label: '전체', href: '/products' },
-  { label: 'MLB', href: '/products?league=MLB' },
-  { label: 'NBA', href: '/products?league=NBA' },
-  { label: 'NFL', href: '/products?league=NFL' },
-  { label: 'NHL', href: '/products?league=NHL' },
-  { label: 'MLS', href: '/products?league=MLS' },
+  { label: '전체', href: '/pyt' },
+  { label: 'MLB', href: '/pyt?league=MLB' },
+  { label: 'NBA', href: '/pyt?league=NBA' },
+  { label: 'NFL', href: '/pyt?league=NFL' },
+  { label: 'NHL', href: '/pyt?league=NHL' },
+  { label: 'MLS', href: '/pyt?league=MLS' },
 ];
 
 const navItems = [
