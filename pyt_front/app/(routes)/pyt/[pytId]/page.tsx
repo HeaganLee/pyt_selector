@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? '';
 
 type SlotStatus = 'AVAILABLE' | 'RESERVED' | 'SOLD' | 'FILLER_TARGET' | 'FILLER_ASSIGNED';
 
@@ -23,102 +25,25 @@ interface PytDetail {
   brandName: string;
   productName: string;
   imageUrl: string;
-  checklistUrl: string;
+  checklistUrl: string | null;
   sportType: string;
   optionName: string;
   boxType: string;
   breakUnitType: 'FULL_CASE' | 'HALF_CASE' | 'BOX' | 'CUSTOM';
   roundNo: number;
   boxCount: number;
-  pytStatus: 'OPEN' | 'FILLER_OPEN' | 'SOLD_OUT' | 'COMPLETED';
+  pytStatus:
+    | 'DRAFT'
+    | 'OPEN'
+    | 'FILLER_OPEN'
+    | 'FILLER_SOLD_OUT'
+    | 'SOLD_OUT'
+    | 'READY'
+    | 'COMPLETED'
+    | 'CANCELLED';
   fillerEnabled: boolean;
   teamSlots: PytTeamSlot[];
 }
-
-const mockPytDetail: PytDetail = {
-  id: 1,
-  title: '2024 Topps Chrome Baseball Hobby 1 Case PYT #1',
-  brandName: 'Topps',
-  productName: 'Chrome Baseball',
-  imageUrl: '',
-  checklistUrl: 'https://example.com/checklist',
-  sportType: 'MLB',
-  optionName: 'Hobby Box',
-  boxType: 'HOBBY',
-  breakUnitType: 'FULL_CASE',
-  roundNo: 1,
-  boxCount: 12,
-  pytStatus: 'OPEN',
-  fillerEnabled: true,
-  teamSlots: [
-    {
-      id: 1,
-      teamId: 1,
-      teamName: 'Arizona Diamondbacks',
-      shortName: 'Diamondbacks',
-      price: 15000,
-      slotStatus: 'AVAILABLE',
-      fillerTarget: false,
-    },
-    {
-      id: 2,
-      teamId: 2,
-      teamName: 'Atlanta Braves',
-      shortName: 'Braves',
-      price: 80000,
-      slotStatus: 'SOLD',
-      buyerNickname: 'collectorA',
-      fillerTarget: false,
-    },
-    {
-      id: 3,
-      teamId: 3,
-      teamName: 'Baltimore Orioles',
-      shortName: 'Orioles',
-      price: 90000,
-      slotStatus: 'AVAILABLE',
-      fillerTarget: false,
-    },
-    {
-      id: 4,
-      teamId: 4,
-      teamName: 'Boston Red Sox',
-      shortName: 'Red Sox',
-      price: 45000,
-      slotStatus: 'AVAILABLE',
-      fillerTarget: false,
-    },
-    {
-      id: 5,
-      teamId: 5,
-      teamName: 'Chicago Cubs',
-      shortName: 'Cubs',
-      price: 50000,
-      slotStatus: 'SOLD',
-      buyerNickname: 'pytUser',
-      fillerTarget: false,
-    },
-    {
-      id: 6,
-      teamId: 6,
-      teamName: 'Los Angeles Dodgers',
-      shortName: 'Dodgers',
-      price: 150000,
-      slotStatus: 'SOLD',
-      buyerNickname: 'dodgerFan',
-      fillerTarget: false,
-    },
-    {
-      id: 7,
-      teamId: 7,
-      teamName: 'New York Yankees',
-      shortName: 'Yankees',
-      price: 120000,
-      slotStatus: 'AVAILABLE',
-      fillerTarget: false,
-    },
-  ],
-};
 
 function getCookie(key: string) {
   if (typeof document === 'undefined') return null;
@@ -184,44 +109,89 @@ function SlotStatusBadge({ status }: { status: SlotStatus }) {
 
 export default function PytDetailPage() {
   const params = useParams<{ pytId: string }>();
-  const router = useRouter();
 
   const pytId = Number(params.pytId);
 
-  const [pyt, setPyt] = useState<PytDetail>(mockPytDetail);
+  const [pyt, setPyt] = useState<PytDetail | null>(null);
   const [selectedFillerSlotIds, setSelectedFillerSlotIds] = useState<number[]>([]);
   const [fillerSlotCount, setFillerSlotCount] = useState(10);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const totalTeamCount = pyt.teamSlots.length;
-  const soldTeamCount = pyt.teamSlots.filter((slot) => slot.slotStatus === 'SOLD').length;
-  const availableTeamCount = pyt.teamSlots.filter(
+  useEffect(() => {
+    if (!Number.isFinite(pytId)) {
+      setErrorMessage('잘못된 PYT ID입니다.');
+      setIsLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchPytDetail = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage('');
+
+        const response = await fetch(`${API_BASE_URL}/pyt/${pytId}`);
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = (await response.json()) as PytDetail;
+
+        if (isMounted) {
+          setPyt(data);
+        }
+      } catch (error) {
+        console.error(error);
+        if (isMounted) {
+          setErrorMessage('PYT 상세 정보를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    fetchPytDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pytId, reloadKey]);
+
+  const teamSlots = useMemo(() => pyt?.teamSlots ?? [], [pyt]);
+
+  const totalTeamCount = teamSlots.length;
+  const soldTeamCount = teamSlots.filter((slot) => slot.slotStatus === 'SOLD').length;
+  const availableTeamCount = teamSlots.filter(
     (slot) => slot.slotStatus === 'AVAILABLE'
   ).length;
 
-  const totalPrice = useMemo(() => {
-    return pyt.teamSlots.reduce((sum, slot) => sum + slot.price, 0);
-  }, [pyt.teamSlots]);
-
   const remainingPrice = useMemo(() => {
-    return pyt.teamSlots
+    return teamSlots
       .filter((slot) => slot.slotStatus === 'AVAILABLE')
       .reduce((sum, slot) => sum + slot.price, 0);
-  }, [pyt.teamSlots]);
+  }, [teamSlots]);
 
   const selectedFillerTotalPrice = useMemo(() => {
-    return pyt.teamSlots
+    return teamSlots
       .filter((slot) => selectedFillerSlotIds.includes(slot.id))
       .reduce((sum, slot) => sum + slot.price, 0);
-  }, [pyt.teamSlots, selectedFillerSlotIds]);
+  }, [teamSlots, selectedFillerSlotIds]);
 
   const fillerPricePerSlot =
     fillerSlotCount > 0 ? Math.ceil(selectedFillerTotalPrice / fillerSlotCount) : 0;
 
   const handleJoinTeam = async (teamSlotId: number) => {
-    const token = getCookie('UT');
+    // TODO: JWT principal이 연결되면 임시 userId request param을 제거한다.
+    const temporaryUserId = getCookie('userId') ?? window.prompt('임시 userId를 입력해주세요.');
 
-    if (!token) {
-      router.push('/login');
+    if (!temporaryUserId?.trim()) {
+      alert('임시 userId가 필요합니다.');
       return;
     }
 
@@ -229,39 +199,24 @@ export default function PytDetailPage() {
 
     if (!confirmed) return;
 
-    /**
-     * 백엔드 연결 시 아래처럼 교체
-     *
-     * const response = await fetch(
-     *   `${process.env.NEXT_PUBLIC_SERVER_URL}/pyt/${pytId}/teams/${teamSlotId}/join`,
-     *   {
-     *     method: 'POST',
-     *     headers: {
-     *       Authorization: `Bearer ${token}`,
-     *     },
-     *   }
-     * );
-     *
-     * if (!response.ok) {
-     *   alert('참가에 실패했습니다.');
-     *   return;
-     * }
-     */
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/pyt/${pytId}/teams/${teamSlotId}/join?userId=${encodeURIComponent(
+          temporaryUserId.trim()
+        )}`,
+        { method: 'POST' }
+      );
 
-    setPyt((prev) => ({
-      ...prev,
-      teamSlots: prev.teamSlots.map((slot) =>
-        slot.id === teamSlotId
-          ? {
-              ...slot,
-              slotStatus: 'SOLD',
-              buyerNickname: 'me',
-            }
-          : slot
-      ),
-    }));
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
 
-    alert('참가 처리되었습니다.');
+      setReloadKey((prev) => prev + 1);
+      alert('참가 처리되었습니다.');
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error && error.message ? error.message : '참가에 실패했습니다.');
+    }
   };
 
   const handleToggleFillerTarget = (teamSlotId: number) => {
@@ -290,44 +245,56 @@ export default function PytDetailPage() {
       slotCount: fillerSlotCount,
     };
 
-    console.log('create filler requestBody:', requestBody);
+    try {
+      const response = await fetch(`${API_BASE_URL}/pyt/${pytId}/fillers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
 
-    /**
-     * 백엔드 연결 시 아래처럼 교체
-     *
-     * const response = await fetch(
-     *   `${process.env.NEXT_PUBLIC_SERVER_URL}/pyt/${pytId}/fillers`,
-     *   {
-     *     method: 'POST',
-     *     headers: { 'Content-Type': 'application/json' },
-     *     body: JSON.stringify(requestBody),
-     *   }
-     * );
-     *
-     * if (!response.ok) {
-     *   alert('필러 생성에 실패했습니다.');
-     *   return;
-     * }
-     */
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
 
-    setPyt((prev) => ({
-      ...prev,
-      pytStatus: 'FILLER_OPEN',
-      teamSlots: prev.teamSlots.map((slot) =>
-        selectedFillerSlotIds.includes(slot.id)
-          ? {
-              ...slot,
-              slotStatus: 'FILLER_TARGET',
-              fillerTarget: true,
-            }
-          : slot
-      ),
-    }));
-
-    setSelectedFillerSlotIds([]);
-
-    alert('필러가 생성되었습니다.');
+      setSelectedFillerSlotIds([]);
+      setReloadKey((prev) => prev + 1);
+      alert('필러가 생성되었습니다.');
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error && error.message ? error.message : '필러 생성에 실패했습니다.');
+    }
   };
+
+  if (isLoading && !pyt) {
+    return (
+      <main className="min-h-screen bg-[#f6f3ee]">
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          <div className="rounded-2xl border-2 border-dashed border-black bg-white px-6 py-12 text-center text-sm font-bold text-gray-500">
+            PYT 상세 정보를 불러오는 중입니다.
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!pyt) {
+    return (
+      <main className="min-h-screen bg-[#f6f3ee]">
+        <div className="mx-auto max-w-7xl px-6 py-10">
+          <Link
+            href="/pyt"
+            className="mb-6 inline-flex items-center rounded-full border border-black bg-white px-4 py-2 text-sm font-black text-black transition hover:bg-black hover:text-white"
+          >
+            ← PYT 목록으로 돌아가기
+          </Link>
+
+          <div className="rounded-2xl border-2 border-dashed border-[#d71920] bg-white px-6 py-12 text-center text-sm font-bold text-[#d71920]">
+            {errorMessage || 'PYT 상세 정보를 찾을 수 없습니다.'}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#f6f3ee]">

@@ -1,11 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-type SportType = 'ALL' | 'MLB' | 'NBA' | 'NFL' | 'NHL' | 'MLS';
+const API_BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? '';
 
-type PytStatus = 'OPEN' | 'FILLER_OPEN' | 'SOLD_OUT' | 'COMPLETED';
+type PytStatus =
+  | 'DRAFT'
+  | 'OPEN'
+  | 'FILLER_OPEN'
+  | 'FILLER_SOLD_OUT'
+  | 'SOLD_OUT'
+  | 'READY'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
 interface PytListItem {
   id: number;
@@ -13,7 +21,7 @@ interface PytListItem {
   brandName: string;
   productName: string;
   imageUrl: string;
-  sportType: SportType;
+  sportType: string;
   optionName: string;
   boxType: string;
   breakUnitType: 'FULL_CASE' | 'HALF_CASE' | 'BOX' | 'CUSTOM';
@@ -24,62 +32,6 @@ interface PytListItem {
   remainingTeamCount: number;
   fillerEnabled: boolean;
 }
-
-const mockPytList: PytListItem[] = [
-  {
-    id: 1,
-    title: '2024 Topps Chrome Baseball Hobby 1 Case PYT #1',
-    brandName: 'Topps',
-    productName: 'Chrome Baseball',
-    imageUrl: '',
-    sportType: 'MLB',
-    optionName: 'Hobby Box',
-    boxType: 'HOBBY',
-    breakUnitType: 'FULL_CASE',
-    roundNo: 1,
-    boxCount: 12,
-    pytStatus: 'OPEN',
-    totalTeamCount: 30,
-    remainingTeamCount: 12,
-    fillerEnabled: true,
-  },
-  {
-    id: 2,
-    title: '2024 Bowman Chrome Baseball Jumbo Half Case PYT #2',
-    brandName: 'Bowman',
-    productName: 'Chrome Baseball',
-    imageUrl: '',
-    sportType: 'MLB',
-    optionName: 'Jumbo Box',
-    boxType: 'JUMBO',
-    breakUnitType: 'HALF_CASE',
-    roundNo: 2,
-    boxCount: 6,
-    pytStatus: 'FILLER_OPEN',
-    totalTeamCount: 30,
-    remainingTeamCount: 4,
-    fillerEnabled: true,
-  },
-  {
-    id: 3,
-    title: '2024 Panini Prizm Basketball Hobby PYT #1',
-    brandName: 'Panini',
-    productName: 'Prizm Basketball',
-    imageUrl: '',
-    sportType: 'NBA',
-    optionName: 'Hobby Box',
-    boxType: 'HOBBY',
-    breakUnitType: 'BOX',
-    roundNo: 1,
-    boxCount: 2,
-    pytStatus: 'SOLD_OUT',
-    totalTeamCount: 30,
-    remainingTeamCount: 0,
-    fillerEnabled: false,
-  },
-];
-
-const sportFilters: SportType[] = ['ALL', 'MLB', 'NBA', 'NFL', 'NHL', 'MLS'];
 
 const statusFilters = [
   { label: '전체', value: 'ALL' },
@@ -137,7 +89,8 @@ function PytStatusBadge({ status }: { status: PytStatus }) {
 
 function PytCard({ pyt }: { pyt: PytListItem }) {
   const soldTeamCount = pyt.totalTeamCount - pyt.remainingTeamCount;
-  const progressPercent = Math.round((soldTeamCount / pyt.totalTeamCount) * 100);
+  const progressPercent =
+    pyt.totalTeamCount > 0 ? Math.round((soldTeamCount / pyt.totalTeamCount) * 100) : 0;
 
   return (
     <Link
@@ -227,17 +180,49 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
 }
 
 export default function PytPage() {
-  const [selectedSport, setSelectedSport] = useState<SportType>('ALL');
+  const [pytList, setPytList] = useState<PytListItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedSport, setSelectedSport] = useState('ALL');
   const [selectedStatus, setSelectedStatus] = useState('ALL');
 
+  useEffect(() => {
+    const fetchPytList = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage('');
+
+        const response = await fetch(`${API_BASE_URL}/pyt`);
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = (await response.json()) as PytListItem[];
+        setPytList(data);
+      } catch (error) {
+        console.error(error);
+        setErrorMessage('PYT 목록을 불러오지 못했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPytList();
+  }, []);
+
+  const sportFilters = useMemo(() => {
+    return ['ALL', ...Array.from(new Set(pytList.map((pyt) => pyt.sportType)))];
+  }, [pytList]);
+
   const filteredPytList = useMemo(() => {
-    return mockPytList.filter((pyt) => {
+    return pytList.filter((pyt) => {
       const sportMatched = selectedSport === 'ALL' || pyt.sportType === selectedSport;
       const statusMatched = selectedStatus === 'ALL' || pyt.pytStatus === selectedStatus;
 
       return sportMatched && statusMatched;
     });
-  }, [selectedSport, selectedStatus]);
+  }, [pytList, selectedSport, selectedStatus]);
 
   return (
     <main className="min-h-screen bg-[#f6f3ee]">
@@ -310,7 +295,15 @@ export default function PytPage() {
         </section>
 
         <section className="mt-10">
-          {filteredPytList.length === 0 ? (
+          {isLoading ? (
+            <div className="rounded-2xl border-2 border-dashed border-black bg-white px-6 py-12 text-center text-sm font-bold text-gray-500">
+              PYT 목록을 불러오는 중입니다.
+            </div>
+          ) : errorMessage ? (
+            <div className="rounded-2xl border-2 border-dashed border-[#d71920] bg-white px-6 py-12 text-center text-sm font-bold text-[#d71920]">
+              {errorMessage}
+            </div>
+          ) : filteredPytList.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-black bg-white px-6 py-12 text-center text-sm font-bold text-gray-500">
               표시할 PYT가 없습니다.
             </div>

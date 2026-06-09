@@ -1,64 +1,35 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_SERVER_URL ?? '';
 
 type BreakUnitType = 'FULL_CASE' | 'HALF_CASE' | 'BOX' | 'CUSTOM';
 
 interface ProductOption {
   id: number;
+  productId: number;
+  brandName: string;
+  productName: string;
   productLabel: string;
   optionName: string;
   boxType: string;
-  sportType: 'MLB' | 'NBA' | 'NFL' | 'NHL' | 'MLS';
-  boxCountDefault: number;
+  sportType: string;
+  boxCountDefault: number | null;
 }
 
 interface TeamItem {
   id: number;
   name: string;
   shortName: string;
-  sportType: 'MLB' | 'NBA' | 'NFL' | 'NHL' | 'MLS';
+  sportType: string;
 }
 
-const mockProductOptions: ProductOption[] = [
-  {
-    id: 1,
-    productLabel: '2024 Topps Chrome Baseball',
-    optionName: 'Hobby Box',
-    boxType: 'HOBBY',
-    sportType: 'MLB',
-    boxCountDefault: 12,
-  },
-  {
-    id: 2,
-    productLabel: '2024 Topps Chrome Baseball',
-    optionName: 'Jumbo Box',
-    boxType: 'JUMBO',
-    sportType: 'MLB',
-    boxCountDefault: 8,
-  },
-  {
-    id: 3,
-    productLabel: '2024 Panini Prizm Basketball',
-    optionName: 'Hobby Box',
-    boxType: 'HOBBY',
-    sportType: 'NBA',
-    boxCountDefault: 12,
-  },
-];
-
-const mockTeams: TeamItem[] = [
-  { id: 1, name: 'Arizona Diamondbacks', shortName: 'Diamondbacks', sportType: 'MLB' },
-  { id: 2, name: 'Atlanta Braves', shortName: 'Braves', sportType: 'MLB' },
-  { id: 3, name: 'Baltimore Orioles', shortName: 'Orioles', sportType: 'MLB' },
-  { id: 4, name: 'Boston Red Sox', shortName: 'Red Sox', sportType: 'MLB' },
-  { id: 5, name: 'Chicago Cubs', shortName: 'Cubs', sportType: 'MLB' },
-  { id: 6, name: 'Los Angeles Dodgers', shortName: 'Dodgers', sportType: 'MLB' },
-  { id: 7, name: 'New York Yankees', shortName: 'Yankees', sportType: 'MLB' },
-  { id: 8, name: 'Los Angeles Lakers', shortName: 'Lakers', sportType: 'NBA' },
-  { id: 9, name: 'Boston Celtics', shortName: 'Celtics', sportType: 'NBA' },
-];
+interface PytCreateData {
+  productOptions: ProductOption[];
+  teams: TeamItem[];
+}
 
 function getBreakUnitLabel(type: BreakUnitType) {
   switch (type) {
@@ -78,25 +49,57 @@ function getBreakUnitLabel(type: BreakUnitType) {
 export default function PytCreatePage() {
   const router = useRouter();
 
-  const [cardProductOptionId, setCardProductOptionId] = useState<number>(
-    mockProductOptions[0]?.id ?? 0
-  );
+  const [productOptions, setProductOptions] = useState<ProductOption[]>([]);
+  const [teams, setTeams] = useState<TeamItem[]>([]);
+  const [cardProductOptionId, setCardProductOptionId] = useState(0);
   const [title, setTitle] = useState('');
   const [breakUnitType, setBreakUnitType] = useState<BreakUnitType>('FULL_CASE');
   const [roundNo, setRoundNo] = useState(1);
-  const [boxCount, setBoxCount] = useState(mockProductOptions[0]?.boxCountDefault ?? 1);
+  const [boxCount, setBoxCount] = useState(1);
   const [fillerEnabled, setFillerEnabled] = useState(true);
   const [teamPrices, setTeamPrices] = useState<Record<number, string>>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  useEffect(() => {
+    const fetchCreateData = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage('');
+
+        const response = await fetch(`${API_BASE_URL}/pyt/create-data`);
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = (await response.json()) as PytCreateData;
+        const firstOption = data.productOptions[0];
+
+        setProductOptions(data.productOptions);
+        setTeams(data.teams);
+        setCardProductOptionId(firstOption?.id ?? 0);
+        setBoxCount(firstOption?.boxCountDefault ?? 1);
+      } catch (error) {
+        console.error(error);
+        setErrorMessage('PYT 생성 데이터를 불러오지 못했습니다.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCreateData();
+  }, []);
+
   const selectedOption = useMemo(() => {
-    return mockProductOptions.find((option) => option.id === cardProductOptionId);
-  }, [cardProductOptionId]);
+    return productOptions.find((option) => option.id === cardProductOptionId);
+  }, [cardProductOptionId, productOptions]);
 
   const filteredTeams = useMemo(() => {
     if (!selectedOption) return [];
-    return mockTeams.filter((team) => team.sportType === selectedOption.sportType);
-  }, [selectedOption]);
+    return teams.filter((team) => team.sportType === selectedOption.sportType);
+  }, [selectedOption, teams]);
 
   const totalPrice = useMemo(() => {
     return filteredTeams.reduce((sum, team) => {
@@ -106,7 +109,7 @@ export default function PytCreatePage() {
   }, [filteredTeams, teamPrices]);
 
   const handleOptionChange = (optionId: number) => {
-    const option = mockProductOptions.find((item) => item.id === optionId);
+    const option = productOptions.find((item) => item.id === optionId);
 
     setCardProductOptionId(optionId);
     setBoxCount(option?.boxCountDefault ?? 1);
@@ -156,25 +159,29 @@ export default function PytCreatePage() {
       })),
     };
 
-    console.log('create pyt requestBody:', requestBody);
+    try {
+      setIsSubmitting(true);
 
-    /**
-     * 백엔드 연결 시 아래처럼 교체
-     *
-     * const response = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL}/pyt`, {
-     *   method: 'POST',
-     *   headers: { 'Content-Type': 'application/json' },
-     *   body: JSON.stringify(requestBody),
-     * });
-     *
-     * if (!response.ok) throw new Error('PYT 생성 실패');
-     *
-     * const pytId = await response.json();
-     * router.push(`/pyt/${pytId}`);
-     */
+      const response = await fetch(`${API_BASE_URL}/pyt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
 
-    alert('PYT 생성 요청 데이터가 console에 출력되었습니다.');
-    router.push('/pyt');
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const pytId = (await response.json()) as number;
+      router.push(`/pyt/${pytId}`);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error && error.message
+        ? error.message
+        : 'PYT 생성에 실패했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -213,10 +220,11 @@ export default function PytCreatePage() {
 
                 <select
                   value={cardProductOptionId}
+                  disabled={isLoading}
                   onChange={(event) => handleOptionChange(Number(event.target.value))}
                   className="h-14 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-base font-bold text-black outline-none focus:border-black focus:bg-white"
                 >
-                  {mockProductOptions.map((option) => (
+                  {productOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.productLabel} / {option.optionName}
                     </option>
@@ -352,31 +360,51 @@ export default function PytCreatePage() {
                 </thead>
 
                 <tbody>
-                  {filteredTeams.map((team, index) => (
-                    <tr
-                      key={team.id}
-                      className={index % 2 === 0 ? 'bg-white' : 'bg-[#f6f3ee]'}
-                    >
-                      <td className="border-b border-gray-300 px-5 py-4">
-                        <p className="text-sm font-black text-black">{team.shortName}</p>
-                        <p className="mt-1 text-xs font-bold text-gray-500">{team.name}</p>
-                      </td>
-
-                      <td className="border-b border-gray-300 px-5 py-4 text-sm font-black text-[#d71920]">
-                        {team.sportType}
-                      </td>
-
-                      <td className="border-b border-gray-300 px-5 py-4">
-                        <input
-                          type="text"
-                          value={teamPrices[team.id] ?? ''}
-                          onChange={(event) => handlePriceChange(team.id, event.target.value)}
-                          placeholder="0"
-                          className="h-11 w-full max-w-[220px] rounded-md border border-gray-300 bg-white px-3 text-sm font-black text-black outline-none focus:border-black"
-                        />
+                  {isLoading ? (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="border-b border-gray-300 px-5 py-8 text-center text-sm font-black text-gray-500"
+                      >
+                        팀 목록을 불러오는 중입니다.
                       </td>
                     </tr>
-                  ))}
+                  ) : filteredTeams.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={3}
+                        className="border-b border-gray-300 px-5 py-8 text-center text-sm font-black text-gray-500"
+                      >
+                        선택 가능한 팀이 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTeams.map((team, index) => (
+                      <tr
+                        key={team.id}
+                        className={index % 2 === 0 ? 'bg-white' : 'bg-[#f6f3ee]'}
+                      >
+                        <td className="border-b border-gray-300 px-5 py-4">
+                          <p className="text-sm font-black text-black">{team.shortName}</p>
+                          <p className="mt-1 text-xs font-bold text-gray-500">{team.name}</p>
+                        </td>
+
+                        <td className="border-b border-gray-300 px-5 py-4 text-sm font-black text-[#d71920]">
+                          {team.sportType}
+                        </td>
+
+                        <td className="border-b border-gray-300 px-5 py-4">
+                          <input
+                            type="text"
+                            value={teamPrices[team.id] ?? ''}
+                            onChange={(event) => handlePriceChange(team.id, event.target.value)}
+                            placeholder="0"
+                            className="h-11 w-full max-w-[220px] rounded-md border border-gray-300 bg-white px-3 text-sm font-black text-black outline-none focus:border-black"
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -391,9 +419,10 @@ export default function PytCreatePage() {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="h-14 rounded-md bg-black px-8 text-base font-black text-white transition hover:bg-[#d71920]"
+              disabled={isLoading || isSubmitting}
+              className="h-14 rounded-md bg-black px-8 text-base font-black text-white transition hover:bg-[#d71920] disabled:cursor-not-allowed disabled:bg-gray-400"
             >
-              PYT 생성하기
+              {isSubmitting ? '생성 중...' : 'PYT 생성하기'}
             </button>
           </div>
         </form>
