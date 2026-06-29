@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 const leagueItems = [
   { label: '전체', href: '/pyt' },
@@ -131,6 +132,13 @@ export default function Header() {
   const pathname = usePathname();
 
   const router = useRouter();
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [accountRoleType, setAccountRoleType] = useState('');
+  const [accountDisplayName, setAccountDisplayName] = useState('');
+
+  const isAdminAccount =
+    accountRoleType === 'ADMIN' || accountRoleType === 'MANAGER';
 
   const getCookie = (key: string) => {
     if (typeof document === 'undefined') return null;
@@ -146,15 +154,68 @@ export default function Header() {
     return decodeURIComponent(targetCookie.split('=')[1]);
   };
 
-  const handleMypageClick = () => {
-    const token = getCookie('UT');
+  const removeCookie = (key: string) => {
+    if (typeof document === 'undefined') return;
 
-    if (token) {
-      router.push('/mypage');
+    document.cookie = `${key}=; Max-Age=0; path=/`;
+  };
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
+
+  const handleAccountIconClick = () => {
+    const token = getCookie('accessToken');
+
+    if (!token) {
+      router.push('/login');
       return;
     }
 
-    router.push('/login');
+    const name =
+      getCookie('name') || getCookie('nickname') || getCookie('email') || '회원';
+
+    setAccountRoleType(getCookie('userRoleType') ?? '');
+    setAccountDisplayName(name);
+    setIsAccountMenuOpen((prev) => !prev);
+  };
+
+  const handleAccountMenuClick = (href: string) => {
+    setIsAccountMenuOpen(false);
+    router.push(href);
+  };
+
+  const handleLogout = () => {
+    removeCookie('accessToken');
+    removeCookie('email');
+    removeCookie('name');
+    removeCookie('nickname');
+    removeCookie('userRoleType');
+    removeCookie('profileImageUrl');
+    setIsAccountMenuOpen(false);
+    setAccountRoleType('');
+    setAccountDisplayName('');
+    router.push('/');
   };
 
   return (
@@ -218,14 +279,60 @@ export default function Header() {
             />
           </label>
 
-          <button
-            type="button"
-            onClick={handleMypageClick}
-            className="text-black transition hover:text-[#d71920]"
-            aria-label="마이페이지"
-          >
-            <UserIcon />
-          </button>
+          <div ref={accountMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={handleAccountIconClick}
+              className="text-black transition hover:text-[#d71920]"
+              aria-label="계정 메뉴"
+              aria-haspopup="menu"
+              aria-expanded={isAccountMenuOpen}
+            >
+              <UserIcon />
+            </button>
+
+            {isAccountMenuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-50 mt-4 w-56 border border-gray-200 bg-white py-2 shadow-[0_12px_30px_rgba(0,0,0,0.12)]"
+              >
+                <div className="border-b border-gray-200 px-5 py-4">
+                  <p className="text-sm font-black text-black">
+                    {accountDisplayName}님 안녕하세요
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => handleAccountMenuClick('/mypage')}
+                  className="block w-full px-5 py-3 text-left text-sm font-extrabold text-black transition hover:bg-[#f2f2f2] hover:text-[#d71920]"
+                >
+                  마이페이지
+                </button>
+
+                {isAdminAccount && (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleAccountMenuClick('/admin')}
+                    className="block w-full px-5 py-3 text-left text-sm font-extrabold text-black transition hover:bg-[#f2f2f2] hover:text-[#d71920]"
+                  >
+                    관리자 페이지
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={handleLogout}
+                  className="block w-full px-5 py-3 text-left text-sm font-extrabold text-black transition hover:bg-[#f2f2f2] hover:text-[#d71920]"
+                >
+                  로그아웃
+                </button>
+              </div>
+            )}
+          </div>
 
           <button
             type="button"

@@ -32,7 +32,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     const response = await fetch(
-      `${process.env.NEXT_PUBLIC_SERVER_URL}/api/auth/login`,
+      `${process.env.NEXT_PUBLIC_SERVER_URL}/auth/login`,
       {
         method: 'POST',
         headers: {
@@ -57,6 +57,11 @@ export default function LoginPage() {
     });
 
     Cookies.set('email', result.email, {
+      expires: 1,
+      path: '/',
+    });
+
+    Cookies.set('name', result.name ?? '', {
       expires: 1,
       path: '/',
     });

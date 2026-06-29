@@ -62,6 +62,7 @@ public class AuthService {
         return new LoginRespDto(
                 accessToken,
                 user.getEmail(),
+                user.getName(),
                 user.getNickname(),
                 user.getUserRoleType(),
                 user.getProfileImageUrl());

@@ -13,6 +13,8 @@ public class LoginRespDto {
 
     private String email;
 
+    private String name;
+
     private String nickname;
 
     private UserRoleType userRoleType;

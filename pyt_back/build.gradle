@@ -44,3 +44,15 @@ dependencies {
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+tasks.named('bootRun') {
+	sourceResources sourceSets.main
+}
+
+tasks.register('dev', Exec) {
+	group = 'application'
+	description = 'Run backend with hot reload (continuous compile + bootRun)'
+	workingDir = layout.projectDirectory.asFile
+	commandLine 'bash', 'scripts/dev.sh'
+	standardInput = System.in
+}

@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pyt.dto.LoginReqDto;
+import com.pyt.dto.LoginRespDto;
 import com.pyt.dto.SignupReqDto;
 import com.pyt.service.AuthService;
 
@@ -34,9 +35,8 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginReqDto reqDto) {
         try {
-
-            authService.login(reqDto);
-            return ResponseEntity.ok().body(null);
+            LoginRespDto loginRespDto = authService.login(reqDto);
+            return ResponseEntity.ok().body(loginRespDto);
         } catch (Exception e) {
 
             return ResponseEntity.badRequest().body(e.getMessage());

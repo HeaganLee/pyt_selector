@@ -9,7 +9,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.pyt.entities.User;
+import com.pyt.enums.UserRoleType;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 
@@ -39,5 +41,18 @@ public class JwtTokenProvider {
                 .expiration(expiryDate)
                 .signWith(secretKey)
                 .compact();
+    }
+
+    public UserRoleType getUserRoleType(String token) {
+        String userRoleType = getClaims(token).get("userRoleType", String.class);
+        return UserRoleType.valueOf(userRoleType);
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 }
