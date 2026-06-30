@@ -12,7 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pyt.dto.ProductDetailRespDto;
+import com.pyt.dto.product.req.CardProductChecklistCreateReqDto;
 import com.pyt.dto.product.req.CardProductCreateReqDto;
+import com.pyt.dto.product.req.CardProductTierCriteriaCreateReqDto;
 import com.pyt.service.ProductService;
 
 import lombok.RequiredArgsConstructor;
@@ -33,9 +35,31 @@ public class ProductController {
         }
     }
 
-    @GetMapping("/{productId}")
-    public ProductDetailRespDto getProductDetail(@PathVariable Long productId) {
-        return productService.getProductDetail(productId);
+    @GetMapping("/release-calendar")
+    public ResponseEntity<?> getReleaseCalendarItems() {
+        try {
+            return ResponseEntity.ok(productService.getReleaseCalendarItems());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/tiers")
+    public ResponseEntity<?> getTierBoardItems() {
+        try {
+            return ResponseEntity.ok(productService.getTierBoardItems());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/checklists")
+    public ResponseEntity<?> getChecklistItems() {
+        try {
+            return ResponseEntity.ok(productService.getChecklistItems());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
     }
 
     @GetMapping("/admin/card-companies")
@@ -43,6 +67,30 @@ public class ProductController {
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
         try {
             return ResponseEntity.ok(productService.getAdminCardCompanies(authorizationHeader));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/admin/card-products")
+    public ResponseEntity<?> getAdminCardProducts(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        try {
+            return ResponseEntity.ok(productService.getAdminCardProducts(authorizationHeader));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/admin/sports-teams")
+    public ResponseEntity<?> getAdminSportsTeams(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        try {
+            return ResponseEntity.ok(productService.getAdminSportsTeams(authorizationHeader));
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {
@@ -61,5 +109,36 @@ public class ProductController {
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
+    }
+
+    @PostMapping("/admin/tier-criteria")
+    public ResponseEntity<?> createAdminTierCriteria(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody CardProductTierCriteriaCreateReqDto reqDto) {
+        try {
+            return ResponseEntity.ok(productService.createAdminTierCriteria(authorizationHeader, reqDto));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/admin/checklists")
+    public ResponseEntity<?> createAdminChecklist(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody CardProductChecklistCreateReqDto reqDto) {
+        try {
+            return ResponseEntity.ok(productService.createAdminChecklist(authorizationHeader, reqDto));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{productId}")
+    public ProductDetailRespDto getProductDetail(@PathVariable Long productId) {
+        return productService.getProductDetail(productId);
     }
 }

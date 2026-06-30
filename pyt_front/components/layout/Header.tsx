@@ -32,8 +32,16 @@ const navItems = [
     ],
   },
   {
-    label: '제품 체크리스트',
+    label: '체크리스트',
     href: '/checklists',
+    children: [
+      { label: '전체', href: '/checklists' },
+      { label: 'MLB', href: '/checklists?league=MLB' },
+      { label: 'NBA', href: '/checklists?league=NBA' },
+      { label: 'NFL', href: '/checklists?league=NFL' },
+      { label: 'NHL', href: '/checklists?league=NHL' },
+      { label: 'MLS', href: '/checklists?league=MLS' },
+    ],
   },
   {
     label: '발매일정',

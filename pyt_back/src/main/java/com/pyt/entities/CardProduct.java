@@ -60,6 +60,9 @@ public class CardProduct extends BaseTimeEntity {
     @OneToMany(mappedBy = "cardProduct")
     private List<CardProductTierCriteria> tierCriteria = new ArrayList<>();
 
+    @OneToMany(mappedBy = "cardProduct")
+    private List<CardProductChecklistItem> checklistItems = new ArrayList<>();
+
     public CardProduct(
             CardCompany cardCompany,
             SportType sportType,

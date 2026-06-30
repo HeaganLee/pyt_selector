@@ -4,22 +4,23 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-type TierGrade = 'S' | 'A' | 'B' | 'C' | 'D';
+type TierGrade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
 interface TeamTier {
   id: number;
   teamName: string;
+  expectedPytPrice: number | null;
   tierGrade: TierGrade;
-  keyPlayers: string;
-  commentText: string;
-  aiSummary: string;
+  keyPlayers: string | null;
+  commentText: string | null;
+  aiSummary: string | null;
 }
 
 interface TierCriteria {
   id: number;
-  criteriaType: 'PROSPECT_ONLY' | 'FIRST_PROSPECT' | 'SUPERSTAR_AND_PROSPECT';
+  criteriaType: string;
   criteriaName: string;
-  description: string;
+  description: string | null;
   teamTiers: TeamTier[];
 }
 
@@ -40,7 +41,18 @@ const tierOrder: Record<TierGrade, number> = {
   B: 2,
   C: 3,
   D: 4,
+  F: 5,
 };
+
+function getPriceLabel(value: number | null) {
+  if (value === null || value === undefined) return '-';
+
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 0,
+  }).format(value);
+}
 
 export default function ProductDetailPage() {
   const params = useParams<{ productId: string }>();
@@ -61,7 +73,6 @@ export default function ProductDetailPage() {
         if (!response.ok) return;
 
         const result = await response.json();
-        console.log('result>> ', result)
         setProduct(result);
 
       } catch (error) {
@@ -211,6 +222,9 @@ export default function ProductDetailPage() {
                               Team
                             </th>
                             <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
+                              PYT
+                            </th>
+                            <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
                               Key Players
                             </th>
                             <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
@@ -237,12 +251,16 @@ export default function ProductDetailPage() {
                                 {teamTier.teamName}
                               </td>
 
+                              <td className="border-b border-gray-300 px-5 py-4 text-sm font-bold text-gray-800">
+                                {getPriceLabel(teamTier.expectedPytPrice)}
+                              </td>
+
                               <td className="border-b border-gray-300 px-5 py-4 text-sm font-semibold text-gray-800">
-                                {teamTier.keyPlayers}
+                                {teamTier.keyPlayers || '-'}
                               </td>
 
                               <td className="border-b border-gray-300 px-5 py-4 text-sm text-gray-700">
-                                {teamTier.commentText}
+                                {teamTier.commentText || teamTier.aiSummary || '-'}
                               </td>
                             </tr>
                           ))}

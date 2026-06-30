@@ -18,6 +18,9 @@ public interface CardProductRepository extends JpaRepository<CardProduct, Long> 
             LocalDate startDate,
             LocalDate endDate);
 
+    @EntityGraph(attributePaths = "cardCompany")
+    List<CardProduct> findAllByOrderByReleaseDateDescIdDesc();
+
     @Query("""
                 select distinct cp
                 from CardProduct cp

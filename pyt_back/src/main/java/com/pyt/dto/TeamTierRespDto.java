@@ -1,5 +1,7 @@
 package com.pyt.dto;
 
+import java.math.BigDecimal;
+
 import com.pyt.entities.CardProductTeamTier;
 import com.pyt.enums.TierGrade;
 
@@ -10,6 +12,7 @@ public class TeamTierRespDto {
 
     private Long id;
     private String teamName;
+    private BigDecimal expectedPytPrice;
     private TierGrade tierGrade;
     private String keyPlayers;
     private String commentText;
@@ -18,6 +21,7 @@ public class TeamTierRespDto {
     public TeamTierRespDto(CardProductTeamTier teamTier) {
         this.id = teamTier.getId();
         this.teamName = teamTier.getTeam().getName();
+        this.expectedPytPrice = teamTier.getExpectedPytPrice();
         this.tierGrade = teamTier.getTierGrade();
         this.keyPlayers = teamTier.getKeyPlayers();
         this.commentText = teamTier.getCommentText();
