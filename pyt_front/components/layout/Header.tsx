@@ -20,40 +20,8 @@ const navItems = [
     children: leagueItems,
   },
   {
-    label: '티어표',
-    href: '/tiers',
-    children: [
-      { label: '전체', href: '/tiers' },
-      { label: 'MLB', href: '/tiers?league=MLB' },
-      { label: 'NBA', href: '/tiers?league=NBA' },
-      { label: 'NFL', href: '/tiers?league=NFL' },
-      { label: 'NHL', href: '/tiers?league=NHL' },
-      { label: 'MLS', href: '/tiers?league=MLS' },
-    ],
-  },
-  {
-    label: '체크리스트',
-    href: '/checklists',
-    children: [
-      { label: '전체', href: '/checklists' },
-      { label: 'MLB', href: '/checklists?league=MLB' },
-      { label: 'NBA', href: '/checklists?league=NBA' },
-      { label: 'NFL', href: '/checklists?league=NFL' },
-      { label: 'NHL', href: '/checklists?league=NHL' },
-      { label: 'MLS', href: '/checklists?league=MLS' },
-    ],
-  },
-  {
-    label: '발매일정',
-    href: '/release-calendar',
-    children: [
-      { label: '전체', href: '/release-calendar' },
-      { label: 'MLB', href: '/release-calendar?league=MLB' },
-      { label: 'NBA', href: '/release-calendar?league=NBA' },
-      { label: 'NFL', href: '/release-calendar?league=NFL' },
-      { label: 'NHL', href: '/release-calendar?league=NHL' },
-      { label: 'MLS', href: '/release-calendar?league=MLS' },
-    ],
+    label: '제품',
+    href: '/products',
   },
   {
     label: '카드 거래',
