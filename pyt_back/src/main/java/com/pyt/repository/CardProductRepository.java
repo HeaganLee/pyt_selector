@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.pyt.entities.CardProduct;
+import com.pyt.enums.SportType;
 
 public interface CardProductRepository extends JpaRepository<CardProduct, Long> {
 
@@ -20,6 +21,9 @@ public interface CardProductRepository extends JpaRepository<CardProduct, Long> 
 
     @EntityGraph(attributePaths = "cardCompany")
     List<CardProduct> findAllByOrderByReleaseDateDescIdDesc();
+
+    @EntityGraph(attributePaths = "cardCompany")
+    List<CardProduct> findBySportTypeOrderByReleaseDateDescIdDesc(SportType sportType);
 
     @Query("""
                 select distinct cp

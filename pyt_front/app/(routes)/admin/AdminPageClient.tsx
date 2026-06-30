@@ -15,7 +15,7 @@ type AdminSectionKey =
   | 'checklist-registration';
 type SellerStatusFilterKey = 'pending' | 'approved' | 'cancelled' | 'all';
 type ReviewAction = 'approve' | 'cancel';
-type SportType = 'BASEBALL' | 'BASKETBALL' | 'FOOTBALL';
+type SportType = 'BASEBALL' | 'BASKETBALL' | 'FOOTBALL' | 'HOCKEY' | 'SOCCER';
 type BoxType = 'HOBBY' | 'JUMBO' | 'BLASTER' | 'MEGA' | 'RETAIL' | 'HTA' | 'CASE';
 type TierCriteriaType =
   | 'PROSPECT'
@@ -173,6 +173,8 @@ const sportOptions: { value: SportType; label: string }[] = [
   { value: 'BASEBALL', label: '야구' },
   { value: 'BASKETBALL', label: '농구' },
   { value: 'FOOTBALL', label: '풋볼' },
+  { value: 'HOCKEY', label: '하키' },
+  { value: 'SOCCER', label: '축구' },
 ];
 
 const boxTypeOptions: { value: BoxType; label: string }[] = [

@@ -4,7 +4,12 @@ const footerMenus = [
   {
     title: '제품',
     links: [
-      { label: '제품 목록', href: '/products' },
+      { label: '전체 제품', href: '/products' },
+      { label: 'MLB', href: '/products?category=MLB' },
+      { label: 'NBA', href: '/products?category=NBA' },
+      { label: 'NFL', href: '/products?category=NFL' },
+      { label: 'NHL', href: '/products?category=NHL' },
+      { label: 'MLS', href: '/products?category=MLS' },
       { label: 'PYT', href: '/pyt' },
     ],
   },

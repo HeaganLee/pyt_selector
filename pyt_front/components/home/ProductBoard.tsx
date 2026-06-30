@@ -104,11 +104,7 @@ function ProductSection({
   );
 }
 
-export default function ProductBoard({
-  showAdditionalSections = false,
-}: {
-  showAdditionalSections?: boolean;
-}) {
+export default function ProductBoard() {
   const [products, setProducts] = useState<ProductItem[]>([]);
 
   useEffect(() => {
@@ -142,12 +138,6 @@ export default function ProductBoard({
 
   const upcomingProducts = products.filter(
     (product) => product.status === 'UPCOMING'
-  );
-
-  const endedProducts = products.filter((product) => product.status === 'ENDED');
-
-  const unknownProducts = products.filter(
-    (product) => product.status === 'UNKNOWN'
   );
 
   return (
@@ -185,14 +175,6 @@ export default function ProductBoard({
 
         <ProductSection title="현재 발매중인 박스" products={onSaleProducts} />
         <ProductSection title="발매 예정 박스" products={upcomingProducts} />
-
-        {showAdditionalSections && endedProducts.length > 0 && (
-          <ProductSection title="발매 종료 박스" products={endedProducts} />
-        )}
-
-        {showAdditionalSections && unknownProducts.length > 0 && (
-          <ProductSection title="발매일 미정 박스" products={unknownProducts} />
-        )}
       </div>
     </main>
   );

@@ -1,5 +1,10 @@
-import ProductBoard from '@/components/home/ProductBoard';
+import { Suspense } from 'react';
+import ProductCatalog from '@/components/product/ProductCatalog';
 
 export default function ProductsPage() {
-  return <ProductBoard showAdditionalSections />;
+  return (
+    <Suspense fallback={null}>
+      <ProductCatalog />
+    </Suspense>
+  );
 }

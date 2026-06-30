@@ -37,6 +37,7 @@ import com.pyt.entities.CardProductTierCriteria;
 import com.pyt.entities.SportsTeam;
 import com.pyt.enums.ActiveStatus;
 import com.pyt.enums.BoxType;
+import com.pyt.enums.SportType;
 import com.pyt.repository.CardCompanyRepository;
 import com.pyt.repository.CardProductChecklistItemRepository;
 import com.pyt.repository.CardProductOptionRepository;
@@ -60,6 +61,7 @@ public class ProductService {
     private final SportsTeamRepository sportsTeamRepository;
     private final AdminAuthorizationService adminAuthorizationService;
 
+    @Transactional(readOnly = true)
     public List<CardProductRespDto> getProductItems() {
         LocalDate today = LocalDate.now();
 
@@ -71,6 +73,17 @@ public class ProductService {
                         onSaleStartDate,
                         upcomingEndDate)
                 .stream()
+                .map(CardProductRespDto::new)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<CardProductRespDto> getCatalogItems(SportType sportType) {
+        List<CardProduct> products = sportType == null
+                ? cardProductRepository.findAllByOrderByReleaseDateDescIdDesc()
+                : cardProductRepository.findBySportTypeOrderByReleaseDateDescIdDesc(sportType);
+
+        return products.stream()
                 .map(CardProductRespDto::new)
                 .toList();
     }

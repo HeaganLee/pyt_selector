@@ -9,12 +9,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.pyt.dto.ProductDetailRespDto;
 import com.pyt.dto.product.req.CardProductChecklistCreateReqDto;
 import com.pyt.dto.product.req.CardProductCreateReqDto;
 import com.pyt.dto.product.req.CardProductTierCriteriaCreateReqDto;
+import com.pyt.enums.SportType;
 import com.pyt.service.ProductService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,16 @@ public class ProductController {
             return productService.getProductItems();
         } catch (Exception e) {
             return e.getMessage();
+        }
+    }
+
+    @GetMapping("/catalog")
+    public ResponseEntity<?> getCatalogItems(
+            @RequestParam(value = "sportType", required = false) SportType sportType) {
+        try {
+            return ResponseEntity.ok(productService.getCatalogItems(sportType));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

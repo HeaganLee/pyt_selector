@@ -13,6 +13,24 @@ const leagueItems = [
   { label: 'MLS', href: '/pyt?league=MLS' },
 ];
 
+const productCategoryItems = [
+  { label: '전체', href: '/products' },
+  { label: 'MLB', href: '/products?category=MLB' },
+  { label: 'NBA', href: '/products?category=NBA' },
+  { label: 'NFL', href: '/products?category=NFL' },
+  { label: 'NHL', href: '/products?category=NHL' },
+  { label: 'MLS', href: '/products?category=MLS' },
+];
+
+const tradeCategoryItems = [
+  { label: '전체', href: '/trades' },
+  { label: 'MLB', href: '/trades?category=MLB' },
+  { label: 'NBA', href: '/trades?category=NBA' },
+  { label: 'NFL', href: '/trades?category=NFL' },
+  { label: 'NHL', href: '/trades?category=NHL' },
+  { label: 'MLS', href: '/trades?category=MLS' },
+];
+
 const navItems = [
   {
     label: 'PYT',
@@ -22,10 +40,12 @@ const navItems = [
   {
     label: '제품',
     href: '/products',
+    children: productCategoryItems,
   },
   {
     label: '카드 거래',
     href: '/trades',
+    children: tradeCategoryItems,
   },
 ];
 
