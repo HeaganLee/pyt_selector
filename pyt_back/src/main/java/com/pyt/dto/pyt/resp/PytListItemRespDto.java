@@ -8,6 +8,7 @@ import lombok.Getter;
 public class PytListItemRespDto {
 
         private Long id;
+        private Long cardProductId;
         private String title;
 
         private String brandName;
@@ -33,6 +34,9 @@ public class PytListItemRespDto {
                         Integer totalTeamCount,
                         Integer remainingTeamCount) {
                 this.id = pytBreak.getId();
+                this.cardProductId = pytBreak.getCardProductOption()
+                                .getCardProduct()
+                                .getId();
                 this.title = pytBreak.getTitle();
 
                 this.brandName = pytBreak.getCardProductOption()

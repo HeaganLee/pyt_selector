@@ -25,6 +25,12 @@ public class CardProductChecklistCreateReqDto {
 
         private String sectionName;
 
+        private Integer sourcePage;
+
+        private String topCategory;
+
+        private String cardType;
+
         private String cardNumber;
 
         private String playerName;
@@ -33,6 +39,12 @@ public class CardProductChecklistCreateReqDto {
 
         private String teamName;
 
+        private String teamOriginal;
+
+        private String matchedTeamName;
+
+        private String matchNote;
+
         private String parallelName;
 
         private Boolean rookieCard;
@@ -40,6 +52,8 @@ public class CardProductChecklistCreateReqDto {
         private Boolean autograph;
 
         private Boolean relic;
+
+        private Boolean variation;
 
         private String notes;
     }

@@ -17,6 +17,7 @@ public class ProductDetailRespDto {
     private LocalDate releaseDate;
     private String status;
     private String imageUrl;
+    private String checklistUrl;
     private List<TierCriteriaRespDto> tierCriteria;
 
     public ProductDetailRespDto(CardProduct cardProduct) {
@@ -27,6 +28,7 @@ public class ProductDetailRespDto {
         this.releaseYear = cardProduct.getReleaseDate().getYear();
         this.status = calculateStatus(cardProduct.getReleaseDate());
         this.imageUrl = cardProduct.getImageUrl();
+        this.checklistUrl = cardProduct.getChecklistUrl();
 
         this.tierCriteria = cardProduct.getTierCriteria()
                 .stream()

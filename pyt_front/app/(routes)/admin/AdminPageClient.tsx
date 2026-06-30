@@ -78,24 +78,9 @@ interface TierCreateForm {
   teamTiers: TeamTierForm[];
 }
 
-interface ChecklistItemForm {
-  localId: string;
-  sectionName: string;
-  cardNumber: string;
-  playerName: string;
-  teamId: string;
-  teamName: string;
-  parallelName: string;
-  rookieCard: boolean;
-  autograph: boolean;
-  relic: boolean;
-  notes: string;
-}
-
 interface ChecklistCreateForm {
   cardProductId: string;
   sourceUrl: string;
-  items: ChecklistItemForm[];
 }
 
 interface CardProductCreateResponse {
@@ -133,6 +118,7 @@ interface CardProductAdmin {
   productName: string;
   productLabel: string;
   releaseDate: string | null;
+  checklistUrl: string | null;
 }
 
 interface SportsTeamAdmin {
@@ -306,27 +292,10 @@ function createEmptyTierForm(): TierCreateForm {
   };
 }
 
-function createEmptyChecklistItem(): ChecklistItemForm {
-  return {
-    localId: `${Date.now()}-${Math.random()}`,
-    sectionName: 'Base Set',
-    cardNumber: '',
-    playerName: '',
-    teamId: '',
-    teamName: '',
-    parallelName: '',
-    rookieCard: false,
-    autograph: false,
-    relic: false,
-    notes: '',
-  };
-}
-
 function createEmptyChecklistForm(): ChecklistCreateForm {
   return {
     cardProductId: '',
     sourceUrl: '',
-    items: [createEmptyChecklistItem()],
   };
 }
 
@@ -1365,7 +1334,8 @@ function ChecklistCreatePanel() {
   const router = useRouter();
   const [form, setForm] = useState<ChecklistCreateForm>(createEmptyChecklistForm);
   const [products, setProducts] = useState<CardProductAdmin[]>([]);
-  const [teams, setTeams] = useState<SportsTeamAdmin[]>([]);
+  const [checklistFile, setChecklistFile] = useState<File | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -1384,30 +1354,24 @@ function ChecklistCreatePanel() {
         setIsDataLoading(true);
         setErrorMessage('');
 
-        const [productsResponse, teamsResponse] = await Promise.all([
-          fetch(`${API_BASE_URL}/product/admin/card-products`, {
+        const productsResponse = await fetch(
+          `${API_BASE_URL}/product/admin/card-products`,
+          {
             headers: { Authorization: `Bearer ${accessToken}` },
-          }),
-          fetch(`${API_BASE_URL}/product/admin/sports-teams`, {
-            headers: { Authorization: `Bearer ${accessToken}` },
-          }),
-        ]);
+          }
+        );
 
         if (!productsResponse.ok) {
           throw new Error(await productsResponse.text());
         }
-        if (!teamsResponse.ok) {
-          throw new Error(await teamsResponse.text());
-        }
 
         const productData = (await productsResponse.json()) as CardProductAdmin[];
-        const teamData = (await teamsResponse.json()) as SportsTeamAdmin[];
+        const defaultProduct = productData[0];
         setProducts(productData);
-        setTeams(teamData);
-        setForm((prev) => ({
-          ...prev,
-          cardProductId: prev.cardProductId || String(productData[0]?.id ?? ''),
-        }));
+        setForm({
+          cardProductId: String(defaultProduct?.id ?? ''),
+          sourceUrl: defaultProduct?.checklistUrl ?? '',
+        });
       } catch (error) {
         console.error(error);
         setErrorMessage(
@@ -1423,15 +1387,8 @@ function ChecklistCreatePanel() {
     fetchCreateData();
   }, [router]);
 
-  const selectedProduct = products.find(
-    (product) => String(product.id) === form.cardProductId
-  );
-  const eligibleTeams = selectedProduct
-    ? teams.filter((team) => team.sportType === selectedProduct.sportType)
-    : teams;
-
   const updateChecklistField = (
-    field: Exclude<keyof ChecklistCreateForm, 'items'>,
+    field: keyof ChecklistCreateForm,
     value: string
   ) => {
     setForm((prev) => ({
@@ -1439,93 +1396,39 @@ function ChecklistCreatePanel() {
       [field]: value,
       ...(field === 'cardProductId'
         ? {
-            items: prev.items.map((item) => ({
-              ...item,
-              teamId: '',
-              teamName: '',
-            })),
+            sourceUrl:
+              products.find((product) => String(product.id) === value)
+                ?.checklistUrl ?? '',
           }
         : {}),
     }));
   };
 
-  const updateChecklistItemField = (
-    localId: string,
-    field: Exclude<
-      keyof ChecklistItemForm,
-      'localId' | 'rookieCard' | 'autograph' | 'relic'
-    >,
-    value: string
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.localId === localId ? { ...item, [field]: value } : item
-      ),
-    }));
-  };
-
-  const updateChecklistItemFlag = (
-    localId: string,
-    field: 'rookieCard' | 'autograph' | 'relic',
-    value: boolean
-  ) => {
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.localId === localId ? { ...item, [field]: value } : item
-      ),
-    }));
-  };
-
-  const updateChecklistItemTeam = (localId: string, teamId: string) => {
-    const team = eligibleTeams.find((item) => String(item.id) === teamId);
-
-    setForm((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
-        item.localId === localId
-          ? { ...item, teamId, teamName: team ? team.name : item.teamName }
-          : item
-      ),
-    }));
-  };
-
-  const addChecklistItem = () => {
+  const updateChecklistFile = (file: File | null) => {
     setErrorMessage('');
-    setForm((prev) => ({
-      ...prev,
-      items: [...prev.items, createEmptyChecklistItem()],
-    }));
-  };
-
-  const removeChecklistItem = (localId: string) => {
-    setForm((prev) => {
-      if (prev.items.length === 1) return prev;
-
-      return {
-        ...prev,
-        items: prev.items.filter((item) => item.localId !== localId),
-      };
-    });
+    setSuccessMessage('');
+    setChecklistFile(file);
   };
 
   const resetForm = () => {
+    const defaultProduct = products[0];
     setForm({
-      ...createEmptyChecklistForm(),
-      cardProductId: String(products[0]?.id ?? ''),
+      cardProductId: String(defaultProduct?.id ?? ''),
+      sourceUrl: defaultProduct?.checklistUrl ?? '',
     });
+    setChecklistFile(null);
+    setFileInputKey((prev) => prev + 1);
     setSuccessMessage('');
     setErrorMessage('');
   };
 
   const validateForm = () => {
     if (!form.cardProductId) return '상품을 선택해주세요.';
+    if (!checklistFile) return '업로드할 엑셀 파일을 선택해주세요.';
 
-    for (const item of form.items) {
-      if (!item.sectionName.trim()) return '섹션명을 입력해주세요.';
-      if (!item.cardNumber.trim()) return '카드 번호를 입력해주세요.';
-      if (!item.playerName.trim()) return '선수명을 입력해주세요.';
+    const fileName = checklistFile.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx')) {
+      return '엑셀 파일(.xlsx)만 업로드할 수 있습니다.';
     }
 
     return '';
@@ -1542,6 +1445,12 @@ function ChecklistCreatePanel() {
       return;
     }
 
+    const selectedFile = checklistFile;
+    if (!selectedFile) {
+      setErrorMessage('업로드할 엑셀 파일을 선택해주세요.');
+      return;
+    }
+
     const accessToken = Cookies.get('accessToken');
     if (!accessToken) {
       router.replace('/login');
@@ -1550,29 +1459,17 @@ function ChecklistCreatePanel() {
 
     try {
       setIsSubmitting(true);
+      const payload = new FormData();
+      payload.append('cardProductId', form.cardProductId);
+      payload.append('sourceUrl', form.sourceUrl.trim());
+      payload.append('file', selectedFile);
 
       const response = await fetch(`${API_BASE_URL}/product/admin/checklists`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          cardProductId: Number(form.cardProductId),
-          sourceUrl: form.sourceUrl.trim() || null,
-          items: form.items.map((item) => ({
-            sectionName: item.sectionName.trim(),
-            cardNumber: item.cardNumber.trim(),
-            playerName: item.playerName.trim(),
-            teamId: item.teamId ? Number(item.teamId) : null,
-            teamName: item.teamName.trim() || null,
-            parallelName: item.parallelName.trim() || null,
-            rookieCard: item.rookieCard,
-            autograph: item.autograph,
-            relic: item.relic,
-            notes: item.notes.trim() || null,
-          })),
-        }),
+        body: payload,
       });
 
       if (!response.ok) {
@@ -1583,10 +1480,19 @@ function ChecklistCreatePanel() {
       setSuccessMessage(
         `체크리스트를 등록했습니다. 상품 ID #${data.productId}, 카드 ${data.itemIds.length}개`
       );
-      setForm({
-        ...createEmptyChecklistForm(),
-        cardProductId: String(products[0]?.id ?? ''),
-      });
+      setProducts((prev) =>
+        prev.map((product) =>
+          product.id === data.productId
+            ? { ...product, checklistUrl: data.sourceUrl }
+            : product
+        )
+      );
+      setForm((prev) => ({
+        ...prev,
+        sourceUrl: data.sourceUrl ?? prev.sourceUrl,
+      }));
+      setChecklistFile(null);
+      setFileInputKey((prev) => prev + 1);
     } catch (error) {
       console.error(error);
       setErrorMessage(
@@ -1659,199 +1565,37 @@ function ChecklistCreatePanel() {
         </div>
 
         <div className="border-t border-gray-200 pt-6">
-          <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-black text-gray-500">카드</h3>
-            <button
-              type="button"
-              onClick={addChecklistItem}
-              className="inline-flex h-9 items-center rounded-md border border-gray-300 px-3 text-xs font-black text-black transition hover:border-black"
-            >
-              카드 추가
-            </button>
-          </div>
-
-          <div className="mt-4 divide-y divide-gray-200">
-            {form.items.map((item, index) => (
-              <div key={item.localId} className="py-5 first:pt-0 last:pb-0">
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <h4 className="text-sm font-black text-black">
-                    카드 {index + 1}
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={() => removeChecklistItem(item.localId)}
-                    disabled={form.items.length === 1}
-                    className="inline-flex h-8 items-center rounded-md border border-gray-300 px-3 text-xs font-black text-black transition hover:border-black disabled:cursor-not-allowed disabled:text-gray-400"
-                  >
-                    삭제
-                  </button>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-4">
-                  <label className="block">
-                    <span className="text-sm font-black text-black">섹션</span>
-                    <input
-                      type="text"
-                      value={item.sectionName}
-                      onChange={(event) =>
-                        updateChecklistItemField(
-                          item.localId,
-                          'sectionName',
-                          event.target.value
-                        )
-                      }
-                      className="mt-2 h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-bold text-black outline-none focus:border-black"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-sm font-black text-black">카드 번호</span>
-                    <input
-                      type="text"
-                      value={item.cardNumber}
-                      onChange={(event) =>
-                        updateChecklistItemField(
-                          item.localId,
-                          'cardNumber',
-                          event.target.value
-                        )
-                      }
-                      className="mt-2 h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-bold text-black outline-none focus:border-black"
-                    />
-                  </label>
-                  <label className="block md:col-span-2">
-                    <span className="text-sm font-black text-black">선수명</span>
-                    <input
-                      type="text"
-                      value={item.playerName}
-                      onChange={(event) =>
-                        updateChecklistItemField(
-                          item.localId,
-                          'playerName',
-                          event.target.value
-                        )
-                      }
-                      className="mt-2 h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-bold text-black outline-none focus:border-black"
-                    />
-                  </label>
-                  <label className="block md:col-span-2">
-                    <span className="text-sm font-black text-black">팀</span>
-                    <select
-                      value={item.teamId}
-                      onChange={(event) =>
-                        updateChecklistItemTeam(item.localId, event.target.value)
-                      }
-                      className="mt-2 h-11 w-full rounded-md border border-gray-300 bg-white px-3 text-sm font-bold text-black outline-none focus:border-black"
-                    >
-                      <option value="">직접 입력</option>
-                      {eligibleTeams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {getTeamOptionLabel(team)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="block md:col-span-2">
-                    <span className="text-sm font-black text-black">팀명</span>
-                    <input
-                      type="text"
-                      value={item.teamName}
-                      onChange={(event) =>
-                        updateChecklistItemField(
-                          item.localId,
-                          'teamName',
-                          event.target.value
-                        )
-                      }
-                      className="mt-2 h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-bold text-black outline-none focus:border-black"
-                    />
-                  </label>
-                  <label className="block md:col-span-2">
-                    <span className="text-sm font-black text-black">패러렐</span>
-                    <input
-                      type="text"
-                      value={item.parallelName}
-                      onChange={(event) =>
-                        updateChecklistItemField(
-                          item.localId,
-                          'parallelName',
-                          event.target.value
-                        )
-                      }
-                      className="mt-2 h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-bold text-black outline-none focus:border-black"
-                    />
-                  </label>
-                  <div className="flex flex-wrap items-end gap-4 md:col-span-2">
-                    <label className="inline-flex h-11 items-center gap-2 text-sm font-black text-black">
-                      <input
-                        type="checkbox"
-                        checked={item.rookieCard}
-                        onChange={(event) =>
-                          updateChecklistItemFlag(
-                            item.localId,
-                            'rookieCard',
-                            event.target.checked
-                          )
-                        }
-                        className="h-4 w-4 accent-[#d71920]"
-                      />
-                      RC
-                    </label>
-                    <label className="inline-flex h-11 items-center gap-2 text-sm font-black text-black">
-                      <input
-                        type="checkbox"
-                        checked={item.autograph}
-                        onChange={(event) =>
-                          updateChecklistItemFlag(
-                            item.localId,
-                            'autograph',
-                            event.target.checked
-                          )
-                        }
-                        className="h-4 w-4 accent-[#d71920]"
-                      />
-                      Auto
-                    </label>
-                    <label className="inline-flex h-11 items-center gap-2 text-sm font-black text-black">
-                      <input
-                        type="checkbox"
-                        checked={item.relic}
-                        onChange={(event) =>
-                          updateChecklistItemFlag(
-                            item.localId,
-                            'relic',
-                            event.target.checked
-                          )
-                        }
-                        className="h-4 w-4 accent-[#d71920]"
-                      />
-                      Relic
-                    </label>
-                  </div>
-                  <label className="block md:col-span-4">
-                    <span className="text-sm font-black text-black">비고</span>
-                    <textarea
-                      rows={2}
-                      value={item.notes}
-                      onChange={(event) =>
-                        updateChecklistItemField(
-                          item.localId,
-                          'notes',
-                          event.target.value
-                        )
-                      }
-                      className="mt-2 w-full rounded-md border border-gray-300 px-3 py-3 text-sm font-bold text-black outline-none focus:border-black"
-                    />
-                  </label>
-                </div>
-              </div>
-            ))}
-          </div>
+          <h3 className="text-sm font-black text-gray-500">엑셀 파일</h3>
+          <label className="mt-3 block">
+            <span className="text-sm font-black text-black">
+              체크리스트 엑셀 파일
+            </span>
+            <input
+              key={fileInputKey}
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={(event) =>
+                updateChecklistFile(event.target.files?.[0] ?? null)
+              }
+              className="mt-2 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-black file:mr-4 file:h-8 file:rounded-md file:border-0 file:bg-black file:px-3 file:text-xs file:font-black file:text-white"
+            />
+          </label>
+          {checklistFile && (
+            <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-bold text-black">
+              {checklistFile.name}
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap gap-3 border-t border-gray-200 pt-5">
           <button
             type="submit"
-            disabled={isSubmitting || isDataLoading || products.length === 0}
+            disabled={
+              isSubmitting ||
+              isDataLoading ||
+              products.length === 0 ||
+              !checklistFile
+            }
             className="inline-flex h-11 items-center rounded-md bg-[#d71920] px-5 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
           >
             {isSubmitting ? '등록 중' : '등록'}

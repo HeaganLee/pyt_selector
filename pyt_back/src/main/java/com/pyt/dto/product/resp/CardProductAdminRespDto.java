@@ -22,6 +22,8 @@ public class CardProductAdminRespDto {
 
     private LocalDate releaseDate;
 
+    private String checklistUrl;
+
     public CardProductAdminRespDto(CardProduct cardProduct) {
         this.id = cardProduct.getId();
         this.sportType = cardProduct.getSportType();
@@ -29,5 +31,6 @@ public class CardProductAdminRespDto {
         this.productName = cardProduct.getProductName();
         this.productLabel = cardProduct.getBrandName() + " " + cardProduct.getProductName();
         this.releaseDate = cardProduct.getReleaseDate();
+        this.checklistUrl = cardProduct.getChecklistUrl();
     }
 }
