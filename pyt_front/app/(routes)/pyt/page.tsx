@@ -234,7 +234,7 @@ export default function PytPage() {
             </p>
           </div>
 
-          <div className="grid gap-8 bg-white px-8 py-12 lg:grid-cols-[1fr_260px] lg:items-center">
+          <div className="bg-white px-8 py-12">
             <div>
               <h1 className="text-5xl font-black leading-tight text-black">
                 PYT
@@ -246,13 +246,6 @@ export default function PytPage() {
                 원하는 팀을 직접 선택하고 스포츠 카드 브레이크에 참가하세요.
               </p>
             </div>
-
-            <Link
-              href="/pyt/create"
-              className="inline-flex h-14 items-center justify-center rounded-md bg-[#d71920] px-6 text-base font-black text-white transition hover:bg-black"
-            >
-              PYT 생성하기
-            </Link>
           </div>
         </section>
 

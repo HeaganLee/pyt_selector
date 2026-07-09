@@ -45,6 +45,7 @@ export default function Mypage() {
   const [sellerApplicationMessage, setSellerApplicationMessage] = useState('');
   const [sellerApplicationError, setSellerApplicationError] = useState('');
 
+  const isSeller = userRoleType === 'SELLER';
   const canApplySeller = userRoleType === 'USER';
   const hasPendingSellerApplication =
     sellerApplication?.status === 'PENDING';
@@ -174,6 +175,26 @@ export default function Mypage() {
               <p className="mt-2 break-all text-sm font-bold text-gray-700">
                 {profileImageUrl}
               </p>
+            </div>
+          )}
+
+          {isSeller && (
+            <div className="border-t border-gray-200 pt-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-black text-gray-500">셀러 메뉴</p>
+                  <p className="mt-2 text-base font-bold text-black">
+                    PYT 브레이크를 등록할 수 있습니다.
+                  </p>
+                </div>
+
+                <Link
+                  href="/pyt/create"
+                  className="inline-flex h-12 items-center justify-center rounded-md bg-[#d71920] px-6 text-sm font-black text-white transition hover:bg-black"
+                >
+                  PYT 등록
+                </Link>
+              </div>
             </div>
           )}
 
