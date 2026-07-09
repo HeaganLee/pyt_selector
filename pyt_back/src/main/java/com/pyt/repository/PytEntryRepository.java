@@ -11,4 +11,6 @@ public interface PytEntryRepository extends JpaRepository<PytEntry, Long> {
     List<PytEntry> findByPytBreakIdOrderByIdAsc(Long pytBreakId);
 
     List<PytEntry> findByPytTeamSlotIdOrderByIdAsc(Long pytTeamSlotId);
+
+    long countByPytBreakId(Long pytBreakId);
 }

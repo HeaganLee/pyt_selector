@@ -188,12 +188,20 @@ export default function Mypage() {
                   </p>
                 </div>
 
-                <Link
-                  href="/pyt/create"
-                  className="inline-flex h-12 items-center justify-center rounded-md bg-[#d71920] px-6 text-sm font-black text-white transition hover:bg-black"
-                >
-                  PYT 등록
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href="/pyt/manage"
+                    className="inline-flex h-12 items-center justify-center rounded-md border border-black bg-white px-6 text-sm font-black text-black transition hover:bg-black hover:text-white"
+                  >
+                    PYT 관리
+                  </Link>
+                  <Link
+                    href="/pyt/create"
+                    className="inline-flex h-12 items-center justify-center rounded-md bg-[#d71920] px-6 text-sm font-black text-white transition hover:bg-black"
+                  >
+                    PYT 등록
+                  </Link>
+                </div>
               </div>
             </div>
           )}

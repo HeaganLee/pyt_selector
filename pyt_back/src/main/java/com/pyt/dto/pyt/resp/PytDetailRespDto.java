@@ -9,6 +9,8 @@ import lombok.Getter;
 @Getter
 public class PytDetailRespDto {
         private Long id;
+        private Long cardProductOptionId;
+        private Long cardProductId;
         private String title;
 
         private String brandName;
@@ -32,6 +34,10 @@ public class PytDetailRespDto {
                         PytBreak pytBreak,
                         List<PytTeamSlotRespDto> teamSlots) {
                 this.id = pytBreak.getId();
+                this.cardProductOptionId = pytBreak.getCardProductOption().getId();
+                this.cardProductId = pytBreak.getCardProductOption()
+                                .getCardProduct()
+                                .getId();
                 this.title = pytBreak.getTitle();
 
                 this.brandName = pytBreak.getCardProductOption()

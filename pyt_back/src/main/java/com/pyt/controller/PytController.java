@@ -5,8 +5,10 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.pyt.dto.pyt.req.PytCreateReqDto;
 import com.pyt.dto.pyt.req.PytFillerCreateReqDto;
+import com.pyt.dto.pyt.req.PytUpdateReqDto;
 import com.pyt.service.PytService;
 
 import lombok.RequiredArgsConstructor;
@@ -44,6 +47,31 @@ public class PytController {
         }
     }
 
+    @GetMapping("/manage")
+    public ResponseEntity<?> getSellerPytList(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        try {
+            return ResponseEntity.ok(pytService.getSellerPytList(authorizationHeader));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/manage/{pytId}")
+    public ResponseEntity<?> getSellerPytDetail(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long pytId) {
+        try {
+            return ResponseEntity.ok(pytService.getSellerPytDetail(authorizationHeader, pytId));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PostMapping
     public ResponseEntity<?> createPyt(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
@@ -51,6 +79,34 @@ public class PytController {
         try {
             Long pytId = pytService.createPyt(authorizationHeader, reqDto);
             return ResponseEntity.ok(pytId);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PutMapping("/{pytId}")
+    public ResponseEntity<?> updatePyt(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long pytId,
+            @RequestBody PytUpdateReqDto reqDto) {
+        try {
+            return ResponseEntity.ok(pytService.updatePyt(authorizationHeader, pytId, reqDto));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{pytId}")
+    public ResponseEntity<?> deletePyt(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long pytId) {
+        try {
+            pytService.deletePyt(authorizationHeader, pytId);
+            return ResponseEntity.ok().body("삭제 완료");
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {
@@ -110,11 +166,14 @@ public class PytController {
 
     @PostMapping("/{pytId}/fillers")
     public ResponseEntity<?> createFiller(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @PathVariable Long pytId,
             @RequestBody PytFillerCreateReqDto reqDto) {
         try {
-            Long fillerId = pytService.createFiller(pytId, reqDto);
+            Long fillerId = pytService.createFiller(authorizationHeader, pytId, reqDto);
             return ResponseEntity.ok(fillerId);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

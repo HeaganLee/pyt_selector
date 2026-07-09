@@ -21,6 +21,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import com.pyt.dto.pyt.req.PytCreateReqDto;
 import com.pyt.dto.pyt.req.PytFillerCreateReqDto;
 import com.pyt.dto.pyt.req.PytTeamPriceReqDto;
+import com.pyt.dto.pyt.req.PytUpdateReqDto;
 import com.pyt.dto.pyt.resp.PytCreateDataRespDto;
 import com.pyt.dto.pyt.resp.PytDetailRespDto;
 import com.pyt.dto.pyt.resp.PytListItemRespDto;
@@ -114,6 +115,71 @@ public class PytService {
                 .toList();
 
         return new PytDetailRespDto(pytBreak, teamSlots);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PytListItemRespDto> getSellerPytList(String authorizationHeader) {
+        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+        return getPytList();
+    }
+
+    @Transactional(readOnly = true)
+    public PytDetailRespDto getSellerPytDetail(String authorizationHeader, Long pytId) {
+        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+        return getPytDetail(pytId);
+    }
+
+    @Transactional
+    public PytDetailRespDto updatePyt(
+            String authorizationHeader,
+            Long pytId,
+            PytUpdateReqDto reqDto) {
+        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+        validateUpdateRequest(reqDto);
+
+        PytBreak pytBreak = pytBreakRepository.findDetailById(pytId)
+                .orElseThrow(() -> new IllegalArgumentException("PYT를 찾을 수 없습니다."));
+        CardProductOption cardProductOption = cardProductOptionRepository
+                .findWithCardProductById(reqDto.getCardProductOptionId())
+                .orElseThrow(() -> new IllegalArgumentException("상품 옵션을 찾을 수 없습니다."));
+        validateProductOptionMatchesTeamSport(pytBreak, cardProductOption);
+
+        pytBreak.setCardProductOption(cardProductOption);
+        pytBreak.setTitle(reqDto.getTitle().trim());
+        pytBreak.setBreakUnitType(parseBreakUnitType(reqDto.getBreakUnitType()));
+        pytBreak.setRoundNo(reqDto.getRoundNo());
+        pytBreak.setBoxCount(reqDto.getBoxCount());
+        pytBreak.setFillerEnabled(Boolean.TRUE.equals(reqDto.getFillerEnabled()));
+
+        if (reqDto.getTeamPrices() != null) {
+            updateTeamSlotPrices(pytBreak, reqDto.getTeamPrices());
+        }
+
+        List<PytTeamSlotRespDto> teamSlots = pytTeamSlotRepository.findWithTeamAndBuyerUserByPytBreakId(pytId)
+                .stream()
+                .map(PytTeamSlotRespDto::new)
+                .toList();
+
+        return new PytDetailRespDto(pytBreak, teamSlots);
+    }
+
+    @Transactional
+    public void deletePyt(String authorizationHeader, Long pytId) {
+        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+
+        PytBreak pytBreak = pytBreakRepository.findById(pytId)
+                .orElseThrow(() -> new IllegalArgumentException("PYT를 찾을 수 없습니다."));
+
+        if (pytEntryRepository.countByPytBreakId(pytId) > 0) {
+            throw new IllegalArgumentException("구매 기록이 있는 PYT는 삭제할 수 없습니다.");
+        }
+        if (pytFillerRepository.countByPytBreakId(pytId) > 0) {
+            throw new IllegalArgumentException("필러가 생성된 PYT는 삭제할 수 없습니다.");
+        }
+
+        List<PytTeamSlot> teamSlots = pytTeamSlotRepository.findByPytBreakIdOrderByIdAsc(pytId);
+        pytTeamSlotRepository.deleteAll(teamSlots);
+        pytBreakRepository.delete(pytBreak);
     }
 
     @Transactional
@@ -607,6 +673,15 @@ public class PytService {
     }
 
     @Transactional
+    public Long createFiller(
+            String authorizationHeader,
+            Long pytId,
+            PytFillerCreateReqDto reqDto) {
+        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+        return createFiller(pytId, reqDto);
+    }
+
+    @Transactional
     public Long createFiller(Long pytId, PytFillerCreateReqDto reqDto) {
         validateFillerCreateRequest(reqDto);
 
@@ -664,6 +739,42 @@ public class PytService {
         return filler.getId();
     }
 
+    private void updateTeamSlotPrices(PytBreak pytBreak, List<PytTeamPriceReqDto> teamPrices) {
+        Map<Long, BigDecimal> pricesByTeamId = new HashMap<>();
+        for (PytTeamPriceReqDto teamPrice : teamPrices) {
+            validateTeamPrice(teamPrice);
+            if (pricesByTeamId.put(teamPrice.getTeamId(), teamPrice.getPrice()) != null) {
+                throw new IllegalArgumentException("중복된 팀 가격 정보가 있습니다.");
+            }
+        }
+
+        List<PytTeamSlot> teamSlots = pytTeamSlotRepository.findByPytBreakIdOrderByIdAsc(pytBreak.getId());
+        for (PytTeamSlot teamSlot : teamSlots) {
+            BigDecimal nextPrice = pricesByTeamId.get(teamSlot.getTeam().getId());
+            if (nextPrice == null) {
+                throw new IllegalArgumentException("모든 팀 가격을 입력해주세요.");
+            }
+
+            if (teamSlot.getSlotStatus() != PytTeamSlotStatus.AVAILABLE
+                    && teamSlot.getPrice().compareTo(nextPrice) != 0) {
+                throw new IllegalArgumentException("판매 완료 또는 필러 전환된 팀 가격은 수정할 수 없습니다.");
+            }
+
+            teamSlot.setPrice(nextPrice);
+        }
+    }
+
+    private void validateProductOptionMatchesTeamSport(PytBreak pytBreak, CardProductOption cardProductOption) {
+        SportType productSportType = cardProductOption.getCardProduct().getSportType();
+        List<PytTeamSlot> teamSlots = pytTeamSlotRepository.findByPytBreakIdOrderByIdAsc(pytBreak.getId());
+
+        for (PytTeamSlot teamSlot : teamSlots) {
+            if (!teamSlot.getTeam().getSportType().equals(productSportType)) {
+                throw new IllegalArgumentException("상품 종목과 팀 종목이 일치해야 합니다.");
+            }
+        }
+    }
+
     private void validateCreateRequest(PytCreateReqDto reqDto) {
         if (reqDto == null) {
             throw new IllegalArgumentException("PYT 등록 요청이 필요합니다.");
@@ -699,6 +810,27 @@ public class PytService {
         }
         if (reqDto.getSlotCount() == null || reqDto.getSlotCount() <= 0) {
             throw new IllegalArgumentException("필러 슬롯 수는 0보다 커야 합니다.");
+        }
+    }
+
+    private void validateUpdateRequest(PytUpdateReqDto reqDto) {
+        if (reqDto == null) {
+            throw new IllegalArgumentException("PYT 수정 요청이 필요합니다.");
+        }
+        if (reqDto.getCardProductOptionId() == null) {
+            throw new IllegalArgumentException("상품 옵션 ID가 필요합니다.");
+        }
+        if (reqDto.getTitle() == null || reqDto.getTitle().isBlank()) {
+            throw new IllegalArgumentException("PYT 제목이 필요합니다.");
+        }
+        if (reqDto.getBreakUnitType() == null || reqDto.getBreakUnitType().isBlank()) {
+            throw new IllegalArgumentException("브레이크 단위가 필요합니다.");
+        }
+        if (reqDto.getRoundNo() == null || reqDto.getRoundNo() <= 0) {
+            throw new IllegalArgumentException("차수 정보는 1 이상이어야 합니다.");
+        }
+        if (reqDto.getBoxCount() != null && reqDto.getBoxCount() <= 0) {
+            throw new IllegalArgumentException("박스 수는 1 이상이어야 합니다.");
         }
     }
 

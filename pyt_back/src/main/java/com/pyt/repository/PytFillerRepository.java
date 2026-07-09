@@ -9,4 +9,6 @@ import com.pyt.entities.PytFiller;
 public interface PytFillerRepository extends JpaRepository<PytFiller, Long> {
 
     List<PytFiller> findByPytBreakIdOrderByIdAsc(Long pytBreakId);
+
+    long countByPytBreakId(Long pytBreakId);
 }
