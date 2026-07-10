@@ -48,6 +48,10 @@ public class JwtTokenProvider {
         return UserRoleType.valueOf(userRoleType);
     }
 
+    public String getUserId(String token) {
+        return getClaims(token).getSubject();
+    }
+
     private Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(secretKey)

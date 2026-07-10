@@ -19,8 +19,36 @@ interface PytTeamSlot {
   fillerTarget: boolean;
 }
 
+interface PytFillerEntry {
+  id: number;
+  slotNo: number;
+  paidAmount: number;
+  entryStatus: string;
+  userId: string;
+  userNickname: string | null;
+}
+
+interface PytFiller {
+  id: number;
+  title: string;
+  fillerRoundNo: number | null;
+  boxCount: number | null;
+  teamsPerSlot: number | null;
+  targetTeamCount: number;
+  slotCount: number;
+  entryCount: number;
+  remainingSlotCount: number;
+  pricePerSlot: number;
+  totalTeamPrice: number;
+  fillerStatus: 'OPEN' | 'SOLD_OUT' | 'ASSIGNED' | 'CANCELLED';
+  targetTeamSlots: PytTeamSlot[];
+  entries: PytFillerEntry[];
+}
+
 interface PytDetail {
   id: number;
+  createdByUserId: string | null;
+  createdByNickname: string | null;
   title: string;
   brandName: string;
   productName: string;
@@ -43,6 +71,7 @@ interface PytDetail {
     | 'CANCELLED';
   fillerEnabled: boolean;
   teamSlots: PytTeamSlot[];
+  fillers: PytFiller[];
 }
 
 function getCookie(key: string) {
@@ -88,6 +117,27 @@ function getSlotStatusLabel(status: SlotStatus) {
   }
 }
 
+function getPytStatusLabel(status: PytDetail['pytStatus']) {
+  switch (status) {
+    case 'OPEN':
+      return '모집중';
+    case 'FILLER_OPEN':
+      return '필러중';
+    case 'FILLER_SOLD_OUT':
+      return '필러 마감';
+    case 'SOLD_OUT':
+      return '마감';
+    case 'READY':
+      return '진행 준비';
+    case 'COMPLETED':
+      return '완료';
+    case 'CANCELLED':
+      return '취소';
+    default:
+      return status;
+  }
+}
+
 function SlotStatusBadge({ status }: { status: SlotStatus }) {
   const className =
     status === 'AVAILABLE'
@@ -113,11 +163,17 @@ export default function PytDetailPage() {
   const pytId = Number(params.pytId);
 
   const [pyt, setPyt] = useState<PytDetail | null>(null);
-  const [selectedFillerSlotIds, setSelectedFillerSlotIds] = useState<number[]>([]);
-  const [fillerSlotCount, setFillerSlotCount] = useState(10);
+  const [currentUserId, setCurrentUserId] = useState('');
+  const [accessToken, setAccessToken] = useState('');
+  const [joiningFillerId, setJoiningFillerId] = useState<number | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    setCurrentUserId(getCookie('userId') ?? '');
+    setAccessToken(getCookie('accessToken') ?? '');
+  }, []);
 
   useEffect(() => {
     if (!Number.isFinite(pytId)) {
@@ -177,21 +233,19 @@ export default function PytDetailPage() {
       .reduce((sum, slot) => sum + slot.price, 0);
   }, [teamSlots]);
 
-  const selectedFillerTotalPrice = useMemo(() => {
-    return teamSlots
-      .filter((slot) => selectedFillerSlotIds.includes(slot.id))
-      .reduce((sum, slot) => sum + slot.price, 0);
-  }, [teamSlots, selectedFillerSlotIds]);
-
-  const fillerPricePerSlot =
-    fillerSlotCount > 0 ? Math.ceil(selectedFillerTotalPrice / fillerSlotCount) : 0;
-
   const handleJoinTeam = async (teamSlotId: number) => {
-    // TODO: JWT principal이 연결되면 임시 userId request param을 제거한다.
-    const temporaryUserId = getCookie('userId') ?? window.prompt('임시 userId를 입력해주세요.');
+    if (!accessToken) {
+      alert('로그인 후 참가할 수 있습니다.');
+      return;
+    }
 
-    if (!temporaryUserId?.trim()) {
-      alert('임시 userId가 필요합니다.');
+    if (pyt?.pytStatus !== 'OPEN') {
+      alert('필러중에는 필러 참가를 이용해주세요.');
+      return;
+    }
+
+    if (currentUserId && pyt?.createdByUserId && pyt.createdByUserId === currentUserId) {
+      alert('본인이 생성한 PYT에는 참가할 수 없습니다.');
       return;
     }
 
@@ -201,10 +255,13 @@ export default function PytDetailPage() {
 
     try {
       const response = await fetch(
-        `${API_BASE_URL}/pyt/${pytId}/teams/${teamSlotId}/join?userId=${encodeURIComponent(
-          temporaryUserId.trim()
-        )}`,
-        { method: 'POST' }
+        `${API_BASE_URL}/pyt/${pytId}/teams/${teamSlotId}/join`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        }
       );
 
       if (!response.ok) {
@@ -219,49 +276,46 @@ export default function PytDetailPage() {
     }
   };
 
-  const handleToggleFillerTarget = (teamSlotId: number) => {
-    setSelectedFillerSlotIds((prev) => {
-      if (prev.includes(teamSlotId)) {
-        return prev.filter((id) => id !== teamSlotId);
-      }
-
-      return [...prev, teamSlotId];
-    });
-  };
-
-  const handleCreateFiller = async () => {
-    if (selectedFillerSlotIds.length === 0) {
-      alert('필러 대상 팀을 선택해주세요.');
+  const handleJoinFiller = async (filler: PytFiller) => {
+    if (!accessToken) {
+      alert('로그인 후 참가할 수 있습니다.');
       return;
     }
 
-    if (fillerSlotCount <= 0) {
-      alert('필러 슬롯 수를 입력해주세요.');
+    if (currentUserId && pyt?.createdByUserId && pyt.createdByUserId === currentUserId) {
+      alert('본인이 생성한 PYT에는 참가할 수 없습니다.');
       return;
     }
 
-    const requestBody = {
-      teamSlotIds: selectedFillerSlotIds,
-      slotCount: fillerSlotCount,
-    };
+    if (filler.fillerStatus !== 'OPEN' || filler.remainingSlotCount <= 0) {
+      alert('참가 가능한 필러가 아닙니다.');
+      return;
+    }
+
+    const confirmed = confirm(`${filler.pricePerSlot.toLocaleString()}원으로 필러에 참가하시겠습니까?`);
+    if (!confirmed) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/pyt/${pytId}/fillers`, {
+      setJoiningFillerId(filler.id);
+
+      const response = await fetch(`${API_BASE_URL}/pyt/${pytId}/fillers/${filler.id}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
-      setSelectedFillerSlotIds([]);
       setReloadKey((prev) => prev + 1);
-      alert('필러가 생성되었습니다.');
+      alert('필러 참가가 완료되었습니다.');
     } catch (error) {
       console.error(error);
-      alert(error instanceof Error && error.message ? error.message : '필러 생성에 실패했습니다.');
+      alert(error instanceof Error && error.message ? error.message : '필러 참가에 실패했습니다.');
+    } finally {
+      setJoiningFillerId(null);
     }
   };
 
@@ -295,6 +349,19 @@ export default function PytDetailPage() {
       </main>
     );
   }
+
+  const isFillerMode = pyt.pytStatus === 'FILLER_OPEN';
+  const isOwnPyt = Boolean(currentUserId && pyt.createdByUserId && pyt.createdByUserId === currentUserId);
+  const canJoinDirectTeams = pyt.pytStatus === 'OPEN';
+  const totalFillerSlotCount = pyt.fillers.reduce((sum, filler) => sum + filler.slotCount, 0);
+  const fillerEntryCount = pyt.fillers.reduce((sum, filler) => sum + filler.entryCount, 0);
+  const remainingFillerSlotCount = pyt.fillers.reduce(
+    (sum, filler) => sum + filler.remainingSlotCount,
+    0
+  );
+  const displayFillerPrice = pyt.fillers.find((filler) => filler.fillerStatus === 'OPEN')?.pricePerSlot
+    ?? pyt.fillers[0]?.pricePerSlot
+    ?? 0;
 
   return (
     <main className="min-h-screen bg-[#f6f3ee]">
@@ -331,11 +398,7 @@ export default function PytDetailPage() {
             <div className="flex flex-col justify-center p-8 lg:p-12">
               <div className="mb-4 flex flex-wrap gap-2">
                 <span className="inline-flex rounded-full border border-[#d71920] bg-[#d71920] px-3 py-1 text-xs font-black text-white">
-                  {pyt.pytStatus === 'OPEN'
-                    ? '모집중'
-                    : pyt.pytStatus === 'FILLER_OPEN'
-                      ? '필러중'
-                      : pyt.pytStatus}
+                  {getPytStatusLabel(pyt.pytStatus)}
                 </span>
 
                 <span className="inline-flex rounded-full border border-black bg-white px-3 py-1 text-xs font-black text-black">
@@ -397,36 +460,55 @@ export default function PytDetailPage() {
 
         <section className="mt-10 grid gap-5 md:grid-cols-4">
           <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
-            <p className="text-xs font-black uppercase text-gray-500">전체 팀</p>
-            <p className="mt-2 text-3xl font-black text-black">{totalTeamCount}</p>
-          </div>
-
-          <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
-            <p className="text-xs font-black uppercase text-gray-500">판매 완료</p>
-            <p className="mt-2 text-3xl font-black text-black">{soldTeamCount}</p>
-          </div>
-
-          <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
-            <p className="text-xs font-black uppercase text-gray-500">남은 팀</p>
-            <p className="mt-2 text-3xl font-black text-[#d71920]">{availableTeamCount}</p>
-          </div>
-
-          <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
-            <p className="text-xs font-black uppercase text-gray-500">남은 금액</p>
+            <p className="text-xs font-black uppercase text-gray-500">
+              {isFillerMode ? '필러 슬롯' : '전체 팀'}
+            </p>
             <p className="mt-2 text-3xl font-black text-black">
-              {remainingPrice.toLocaleString()}
+              {isFillerMode ? totalFillerSlotCount : totalTeamCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
+            <p className="text-xs font-black uppercase text-gray-500">
+              {isFillerMode ? '필러 참가' : '판매 완료'}
+            </p>
+            <p className="mt-2 text-3xl font-black text-black">
+              {isFillerMode ? fillerEntryCount : soldTeamCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
+            <p className="text-xs font-black uppercase text-gray-500">
+              {isFillerMode ? '남은 슬롯' : '남은 팀'}
+            </p>
+            <p className="mt-2 text-3xl font-black text-[#d71920]">
+              {isFillerMode ? remainingFillerSlotCount : availableTeamCount}
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
+            <p className="text-xs font-black uppercase text-gray-500">
+              {isFillerMode ? '슬롯가' : '남은 금액'}
+            </p>
+            <p className="mt-2 text-3xl font-black text-black">
+              {(isFillerMode ? displayFillerPrice : remainingPrice).toLocaleString()}
             </p>
           </div>
         </section>
 
-        <section className="mt-10 overflow-hidden rounded-[24px] border border-black bg-white shadow-[6px_6px_0_#111]">
+        <div className="flex flex-col">
+        <section className={`mt-10 overflow-hidden rounded-[24px] border border-black bg-white shadow-[6px_6px_0_#111] ${isFillerMode ? 'order-2' : 'order-1'}`}>
           <div className="border-b border-black bg-black px-6 py-5 text-white">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-[#ff4b4b]">
               Team Slots
             </p>
-            <h2 className="mt-2 text-2xl font-black">팀 선택</h2>
+            <h2 className="mt-2 text-2xl font-black">
+              {isFillerMode ? '팀 현황' : '팀 선택'}
+            </h2>
             <p className="mt-2 text-sm font-bold text-gray-300">
-              원하는 팀을 선택하고 PYT에 참가하세요.
+              {isFillerMode
+                ? '필러 대상 팀과 판매 상태를 확인하세요.'
+                : '원하는 팀을 선택하고 PYT에 참가하세요.'}
             </p>
           </div>
 
@@ -480,9 +562,10 @@ export default function PytDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleJoinTeam(slot.id)}
-                          className="rounded-md bg-black px-4 py-2 text-sm font-black text-white transition hover:bg-[#d71920]"
+                          disabled={isOwnPyt || !canJoinDirectTeams}
+                          className="rounded-md bg-black px-4 py-2 text-sm font-black text-white transition hover:bg-[#d71920] disabled:cursor-not-allowed disabled:bg-gray-400"
                         >
-                          참가하기
+                          {isOwnPyt ? '내 PYT' : canJoinDirectTeams ? '참가하기' : '필러중'}
                         </button>
                       ) : (
                         <span className="text-sm font-black text-gray-400">-</span>
@@ -495,106 +578,100 @@ export default function PytDetailPage() {
           </div>
         </section>
 
-        {pyt.fillerEnabled && (
-          <section className="mt-10 overflow-hidden rounded-[24px] border border-black bg-white shadow-[6px_6px_0_#111]">
+        {pyt.fillers.length > 0 && (
+          <section className={`mt-10 overflow-hidden rounded-[24px] border border-black bg-white shadow-[6px_6px_0_#111] ${isFillerMode ? 'order-1' : 'order-2'}`}>
             <div className="border-b border-black px-6 py-5">
               <p className="text-xs font-black uppercase tracking-[0.25em] text-[#d71920]">
                 Filler
               </p>
-              <h2 className="mt-2 text-2xl font-black text-black">필러 생성</h2>
+              <h2 className="mt-2 text-2xl font-black text-black">필러 참가</h2>
               <p className="mt-2 text-sm font-bold text-gray-500">
-                남은 팀을 선택하고 필러 슬롯 수를 입력하면 슬롯 가격이 자동 계산됩니다.
+                필러 모집 중인 슬롯에 참가할 수 있습니다.
               </p>
             </div>
 
-            <div className="grid gap-6 p-6 lg:grid-cols-[1fr_320px]">
-              <div className="overflow-hidden rounded-2xl border border-black">
-                <table className="min-w-full border-collapse">
-                  <thead>
-                    <tr className="bg-black text-white">
-                      <th className="px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
-                        Select
-                      </th>
-                      <th className="px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
-                        Team
-                      </th>
-                      <th className="px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
-                        Price
-                      </th>
-                    </tr>
-                  </thead>
+            <div className="space-y-5 p-6">
+              {pyt.fillers.map((filler) => {
+                const isOwnPyt = Boolean(currentUserId && pyt.createdByUserId && pyt.createdByUserId === currentUserId);
+                const isJoinDisabled =
+                  isOwnPyt ||
+                  filler.fillerStatus !== 'OPEN' ||
+                  filler.remainingSlotCount <= 0 ||
+                  joiningFillerId === filler.id;
 
-                  <tbody>
-                    {pyt.teamSlots
-                      .filter((slot) => slot.slotStatus === 'AVAILABLE')
-                      .map((slot, index) => (
-                        <tr
-                          key={slot.id}
-                          className={index % 2 === 0 ? 'bg-white' : 'bg-[#f6f3ee]'}
+                return (
+                  <div key={filler.id} className="overflow-hidden rounded-md border border-black">
+                    <div className="flex flex-col gap-3 border-b border-black bg-[#f6f3ee] px-5 py-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <h3 className="text-lg font-black text-black">{filler.title}</h3>
+                        <p className="mt-1 text-xs font-bold text-gray-500">
+                          {pyt.roundNo}-{filler.fillerRoundNo ?? '?'}차 / {filler.boxCount ?? '-'}박스 / 슬롯당 {filler.teamsPerSlot ?? '-'}팀
+                        </p>
+                        <p className="mt-1 text-xs font-bold text-gray-500">
+                          대상 팀 {filler.targetTeamSlots.map((slot) => slot.shortName || slot.teamName).join(', ')}
+                        </p>
+                      </div>
+                      <div className="text-sm font-black text-black">
+                        {filler.entryCount} / {filler.slotCount} 슬롯
+                      </div>
+                    </div>
+
+                    <div className="grid gap-5 p-5 lg:grid-cols-[1fr_260px]">
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {Array.from({ length: filler.slotCount }, (_, index) => {
+                          const slotNo = index + 1;
+                          const entry = filler.entries.find((item) => item.slotNo === slotNo);
+
+                          return (
+                            <div
+                              key={`${filler.id}-${slotNo}`}
+                              className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm font-bold ${
+                                entry
+                                  ? 'border-black bg-black text-white'
+                                  : 'border-gray-300 bg-white text-black'
+                              }`}
+                            >
+                              <span>{slotNo}번</span>
+                              <span>{entry?.userNickname || entry?.userId || '빈 슬롯'}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="rounded-md border border-black bg-white p-4">
+                        <div className="space-y-2 text-sm font-black text-black">
+                          <p>상태 {filler.fillerStatus}</p>
+                          <p>진행 {pyt.roundNo}-{filler.fillerRoundNo ?? '?'}차</p>
+                          <p>슬롯당 {filler.teamsPerSlot ?? '-'}팀</p>
+                          <p>대상 팀 {filler.targetTeamCount}개</p>
+                          <p>남은 슬롯 {filler.remainingSlotCount}개</p>
+                          <p>슬롯가 {filler.pricePerSlot.toLocaleString()}원</p>
+                          <p>대상 총액 {filler.totalTeamPrice.toLocaleString()}원</p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleJoinFiller(filler)}
+                          disabled={isJoinDisabled}
+                          className="mt-4 h-11 w-full rounded-md bg-[#d71920] text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
                         >
-                          <td className="border-b border-gray-300 px-5 py-4">
-                            <input
-                              type="checkbox"
-                              checked={selectedFillerSlotIds.includes(slot.id)}
-                              onChange={() => handleToggleFillerTarget(slot.id)}
-                              className="h-5 w-5 accent-[#d71920]"
-                            />
-                          </td>
-
-                          <td className="border-b border-gray-300 px-5 py-4 text-sm font-black text-black">
-                            {slot.shortName}
-                          </td>
-
-                          <td className="border-b border-gray-300 px-5 py-4 text-sm font-black text-black">
-                            {slot.price.toLocaleString()}원
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="rounded-2xl border border-black bg-[#f6f3ee] p-5">
-                <label className="mb-2 block text-sm font-black text-black">
-                  필러 슬롯 수
-                </label>
-
-                <input
-                  type="number"
-                  min={1}
-                  value={fillerSlotCount}
-                  onChange={(event) => setFillerSlotCount(Number(event.target.value))}
-                  className="h-12 w-full rounded-md border border-gray-300 bg-white px-4 text-base font-black text-black outline-none focus:border-black"
-                />
-
-                <div className="mt-5 space-y-3 rounded-xl border border-black bg-white p-4">
-                  <div className="flex items-center justify-between text-sm font-black">
-                    <span>선택 팀 수</span>
-                    <span>{selectedFillerSlotIds.length}개</span>
+                          {isOwnPyt
+                            ? '내 PYT'
+                            : filler.fillerStatus !== 'OPEN' || filler.remainingSlotCount <= 0
+                              ? '마감'
+                              : joiningFillerId === filler.id
+                                ? '참가 중...'
+                                : '필러 참가'}
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="flex items-center justify-between text-sm font-black">
-                    <span>대상 총액</span>
-                    <span>{selectedFillerTotalPrice.toLocaleString()}원</span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm font-black text-[#d71920]">
-                    <span>1슬롯 가격</span>
-                    <span>{fillerPricePerSlot.toLocaleString()}원</span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleCreateFiller}
-                  className="mt-5 h-12 w-full rounded-md bg-black text-sm font-black text-white transition hover:bg-[#d71920]"
-                >
-                  필러 생성하기
-                </button>
-              </div>
+                );
+              })}
             </div>
           </section>
         )}
+        </div>
       </div>
     </main>
   );

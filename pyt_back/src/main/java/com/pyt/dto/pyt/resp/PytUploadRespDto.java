@@ -64,16 +64,19 @@ public class PytUploadRespDto {
         private final String teamName;
         private final String shortName;
         private final String price;
+        private final Boolean fillerOnly;
 
         public PytUploadTeamPriceRespDto(
                 Long teamId,
                 String teamName,
                 String shortName,
-                String price) {
+                String price,
+                Boolean fillerOnly) {
             this.teamId = teamId;
             this.teamName = teamName;
             this.shortName = shortName;
             this.price = price;
+            this.fillerOnly = Boolean.TRUE.equals(fillerOnly);
         }
     }
 }

@@ -20,6 +20,7 @@ public class PytTeamSlotRespDto {
 
     private String buyerNickname;
     private Boolean fillerTarget;
+    private Boolean fillerOnly;
 
     public PytTeamSlotRespDto(PytTeamSlot slot) {
         this.id = slot.getId();
@@ -36,5 +37,6 @@ public class PytTeamSlotRespDto {
                 : slot.getBuyerUser().getNickname();
 
         this.fillerTarget = slot.getFillerTarget();
+        this.fillerOnly = Boolean.TRUE.equals(slot.getFillerOnly());
     }
 }

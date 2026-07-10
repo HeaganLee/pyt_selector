@@ -25,7 +25,6 @@ interface PytListItem {
   pytStatus: string;
   totalTeamCount: number;
   remainingTeamCount: number;
-  fillerEnabled: boolean;
 }
 
 interface ProductOption {
@@ -53,6 +52,22 @@ interface PytTeamSlot {
   slotStatus: SlotStatus;
   buyerNickname?: string | null;
   fillerTarget: boolean;
+  fillerOnly: boolean;
+}
+
+interface PytFiller {
+  id: number;
+  title: string;
+  fillerRoundNo: number | null;
+  boxCount: number | null;
+  teamsPerSlot: number | null;
+  targetTeamCount: number;
+  slotCount: number;
+  entryCount: number;
+  remainingSlotCount: number;
+  pricePerSlot: number;
+  totalTeamPrice: number;
+  fillerStatus: string;
 }
 
 interface PytDetail {
@@ -68,8 +83,8 @@ interface PytDetail {
   roundNo: number;
   boxCount: number | null;
   pytStatus: string;
-  fillerEnabled: boolean;
   teamSlots: PytTeamSlot[];
+  fillers: PytFiller[];
 }
 
 interface EditForm {
@@ -78,8 +93,8 @@ interface EditForm {
   breakUnitType: BreakUnitType;
   roundNo: number;
   boxCount: number;
-  fillerEnabled: boolean;
   teamPrices: Record<number, string>;
+  fillerOnlyTeamIds: number[];
 }
 
 const breakUnitOptions: { value: BreakUnitType; label: string }[] = [
@@ -117,11 +132,20 @@ function buildEditForm(pyt: PytDetail): EditForm {
     breakUnitType: pyt.breakUnitType,
     roundNo: pyt.roundNo,
     boxCount: pyt.boxCount ?? 1,
-    fillerEnabled: pyt.fillerEnabled,
     teamPrices: Object.fromEntries(
       pyt.teamSlots.map((slot) => [slot.teamId, String(slot.price)])
     ),
+    fillerOnlyTeamIds: pyt.teamSlots
+      .filter((slot) => slot.fillerOnly)
+      .map((slot) => slot.teamId),
   };
+}
+
+function getNextFillerRoundNo(pyt: PytDetail) {
+  return pyt.fillers.reduce(
+    (maxRound, filler) => Math.max(maxRound, filler.fillerRoundNo ?? 0),
+    0
+  ) + 1;
 }
 
 export default function PytManagePage() {
@@ -136,8 +160,9 @@ export default function PytManagePage() {
   const [selectedPytId, setSelectedPytId] = useState<number | null>(null);
   const [selectedPyt, setSelectedPyt] = useState<PytDetail | null>(null);
   const [editForm, setEditForm] = useState<EditForm | null>(null);
-  const [selectedFillerSlotIds, setSelectedFillerSlotIds] = useState<number[]>([]);
-  const [fillerSlotCount, setFillerSlotCount] = useState(10);
+  const [fillerRoundNo, setFillerRoundNo] = useState(1);
+  const [fillerBoxCount, setFillerBoxCount] = useState(1);
+  const [teamsPerFillerSlot, setTeamsPerFillerSlot] = useState(1);
   const [isListLoading, setIsListLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -262,7 +287,9 @@ export default function PytManagePage() {
 
         setSelectedPyt(data);
         setEditForm(buildEditForm(data));
-        setSelectedFillerSlotIds([]);
+        setFillerRoundNo(getNextFillerRoundNo(data));
+        setFillerBoxCount(Math.min(2, data.boxCount ?? 1));
+        setTeamsPerFillerSlot(1);
       } catch (error) {
         console.error(error);
         if (isMounted) {
@@ -291,14 +318,19 @@ export default function PytManagePage() {
     return productOptions.filter((option) => option.sportType === selectedPyt.sportType);
   }, [productOptions, selectedPyt]);
 
-  const selectedFillerTotalPrice = useMemo(() => {
-    return availableSlots
-      .filter((slot) => selectedFillerSlotIds.includes(slot.id))
-      .reduce((sum, slot) => sum + slot.price, 0);
-  }, [availableSlots, selectedFillerSlotIds]);
+  const remainingTeamTotalPrice = useMemo(() => {
+    return availableSlots.reduce((sum, slot) => sum + slot.price, 0);
+  }, [availableSlots]);
+
+  const calculatedFillerSlotCount =
+    teamsPerFillerSlot > 0 && availableSlots.length % teamsPerFillerSlot === 0
+      ? availableSlots.length / teamsPerFillerSlot
+      : 0;
 
   const fillerPricePerSlot =
-    fillerSlotCount > 0 ? Math.ceil(selectedFillerTotalPrice / fillerSlotCount) : 0;
+    calculatedFillerSlotCount > 0
+      ? Math.ceil(remainingTeamTotalPrice / calculatedFillerSlotCount)
+      : 0;
 
   const handleSelectPyt = (pytId: number) => {
     setSelectedPytId(pytId);
@@ -317,6 +349,19 @@ export default function PytManagePage() {
           }
         : prev
     );
+  };
+
+  const handleFillerOnlyToggle = (teamId: number) => {
+    setEditForm((prev) => {
+      if (!prev) return prev;
+      const isSelected = prev.fillerOnlyTeamIds.includes(teamId);
+      return {
+        ...prev,
+        fillerOnlyTeamIds: isSelected
+          ? prev.fillerOnlyTeamIds.filter((id) => id !== teamId)
+          : [...prev.fillerOnlyTeamIds, teamId],
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -349,10 +394,10 @@ export default function PytManagePage() {
           breakUnitType: editForm.breakUnitType,
           roundNo: editForm.roundNo,
           boxCount: editForm.boxCount,
-          fillerEnabled: editForm.fillerEnabled,
           teamPrices: selectedPyt.teamSlots.map((slot) => ({
             teamId: slot.teamId,
             price: Number(editForm.teamPrices[slot.teamId] || 0),
+            fillerOnly: editForm.fillerOnlyTeamIds.includes(slot.teamId),
           })),
         }),
       });
@@ -412,26 +457,33 @@ export default function PytManagePage() {
     }
   };
 
-  const handleToggleFillerSlot = (teamSlotId: number) => {
-    setSelectedFillerSlotIds((prev) =>
-      prev.includes(teamSlotId)
-        ? prev.filter((id) => id !== teamSlotId)
-        : [...prev, teamSlotId]
-    );
-  };
-
   const handleCreateFiller = async () => {
     if (!selectedPyt) return;
     setMessage('');
     setErrorMessage('');
 
-    if (selectedFillerSlotIds.length === 0) {
-      setErrorMessage('필러 전환할 팀을 선택해주세요.');
+    if (availableSlots.length === 0) {
+      setErrorMessage('필러 전환할 남은 팀이 없습니다.');
       return;
     }
 
-    if (fillerSlotCount <= 0) {
-      setErrorMessage('필러 슬롯 수는 1 이상이어야 합니다.');
+    if (fillerRoundNo <= 0) {
+      setErrorMessage('필러 차수는 1 이상이어야 합니다.');
+      return;
+    }
+
+    if (fillerBoxCount <= 0) {
+      setErrorMessage('필러 진행 박스 수는 1 이상이어야 합니다.');
+      return;
+    }
+
+    if (teamsPerFillerSlot <= 0) {
+      setErrorMessage('슬롯당 팀 수는 1 이상이어야 합니다.');
+      return;
+    }
+
+    if (availableSlots.length % teamsPerFillerSlot !== 0) {
+      setErrorMessage('남은 팀 수가 슬롯당 팀 수로 나누어 떨어져야 합니다.');
       return;
     }
 
@@ -445,8 +497,9 @@ export default function PytManagePage() {
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
-          teamSlotIds: selectedFillerSlotIds,
-          slotCount: fillerSlotCount,
+          fillerRoundNo,
+          boxCount: fillerBoxCount,
+          teamsPerSlot: teamsPerFillerSlot,
         }),
       });
 
@@ -457,14 +510,55 @@ export default function PytManagePage() {
       const updated = await fetchPytDetail(accessToken, selectedPyt.id);
       setSelectedPyt(updated);
       setEditForm(buildEditForm(updated));
-      setSelectedFillerSlotIds([]);
+      setFillerRoundNo(getNextFillerRoundNo(updated));
       setPytList(await fetchPytList(accessToken));
-      setMessage('선택한 팀이 필러로 전환되었습니다.');
+      setMessage('남은 팀 전체가 필러로 전환되었습니다.');
     } catch (error) {
       console.error(error);
       setErrorMessage(error instanceof Error && error.message
         ? error.message
         : '필러 전환에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelFiller = async (filler: PytFiller) => {
+    if (!selectedPyt) return;
+    setMessage('');
+    setErrorMessage('');
+
+    if (filler.entryCount > 0) {
+      setErrorMessage('필러 참가자가 있는 필러는 PYT 모집으로 되돌릴 수 없습니다.');
+      return;
+    }
+
+    const confirmed = confirm('이 필러를 취소하고 대상 팀을 다시 PYT 모집으로 되돌리겠습니까?');
+    if (!confirmed) return;
+
+    try {
+      setIsSaving(true);
+
+      const response = await fetch(`${API_BASE_URL}/pyt/${selectedPyt.id}/fillers/${filler.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const updated = await fetchPytDetail(accessToken, selectedPyt.id);
+      setSelectedPyt(updated);
+      setEditForm(buildEditForm(updated));
+      setFillerRoundNo(getNextFillerRoundNo(updated));
+      setPytList(await fetchPytList(accessToken));
+      setMessage('필러가 취소되고 PYT 모집으로 되돌아갔습니다.');
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(error instanceof Error && error.message
+        ? error.message
+        : '필러 취소에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -644,22 +738,6 @@ export default function PytManagePage() {
                     />
                   </label>
 
-                  <div>
-                    <span className="mb-2 block text-sm font-black text-black">필러 사용 여부</span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setEditForm((prev) =>
-                          prev ? { ...prev, fillerEnabled: !prev.fillerEnabled } : prev
-                        )
-                      }
-                      className={`h-12 w-full rounded-md border border-black text-sm font-black transition ${
-                        editForm.fillerEnabled ? 'bg-[#d71920] text-white' : 'bg-[#f1f1f1] text-black'
-                      }`}
-                    >
-                      {editForm.fillerEnabled ? '필러 사용' : '필러 미사용'}
-                    </button>
-                  </div>
                 </div>
 
                 <div className="overflow-hidden rounded-md border border-black">
@@ -682,6 +760,7 @@ export default function PytManagePage() {
                           <th className="px-4 py-3 text-left text-xs font-black">팀</th>
                           <th className="px-4 py-3 text-left text-xs font-black">상태</th>
                           <th className="px-4 py-3 text-left text-xs font-black">가격</th>
+                          <th className="px-4 py-3 text-center text-xs font-black">필러 전용</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -704,6 +783,15 @@ export default function PytManagePage() {
                                   value={editForm.teamPrices[slot.teamId] ?? ''}
                                   onChange={(event) => handlePriceChange(slot.teamId, event.target.value)}
                                   className="h-10 w-full max-w-[180px] rounded-md border border-gray-300 bg-white px-3 text-sm font-black text-black outline-none focus:border-black disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400"
+                                />
+                              </td>
+                              <td className="border-t border-gray-200 px-4 py-3 text-center">
+                                <input
+                                  type="checkbox"
+                                  disabled={isLocked}
+                                  checked={editForm.fillerOnlyTeamIds.includes(slot.teamId)}
+                                  onChange={() => handleFillerOnlyToggle(slot.teamId)}
+                                  className="h-5 w-5 accent-[#d71920] disabled:cursor-not-allowed"
                                 />
                               </td>
                             </tr>
@@ -737,7 +825,7 @@ export default function PytManagePage() {
                   <div className="border-b border-black bg-[#f6f3ee] px-5 py-4">
                     <h3 className="text-lg font-black text-black">필러 전환</h3>
                     <p className="mt-1 text-xs font-bold text-gray-500">
-                      판매 가능한 팀만 선택해 필러 대상으로 전환합니다.
+                      남은 팀 전체를 필러 대상으로 전환합니다. 남은 팀 수가 슬롯당 팀 수로 나누어 떨어져야 합니다.
                     </p>
                   </div>
 
@@ -747,43 +835,86 @@ export default function PytManagePage() {
                         <p className="text-sm font-black text-gray-500">필러 전환 가능한 팀이 없습니다.</p>
                       ) : (
                         availableSlots.map((slot) => (
-                          <label
+                          <div
                             key={slot.id}
                             className="flex items-center justify-between gap-3 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-black"
                           >
                             <span>{slot.shortName || slot.teamName}</span>
+                            {slot.fillerOnly && (
+                              <span className="rounded bg-black px-2 py-1 text-[11px] font-black text-white">
+                                필러 전용
+                              </span>
+                            )}
                             <span>{slot.price.toLocaleString()}원</span>
-                            <input
-                              type="checkbox"
-                              checked={selectedFillerSlotIds.includes(slot.id)}
-                              onChange={() => handleToggleFillerSlot(slot.id)}
-                              className="h-4 w-4 accent-[#d71920]"
-                            />
-                          </label>
+                          </div>
                         ))
                       )}
                     </div>
 
                     <div className="rounded-md border border-black bg-white p-4">
+                      {selectedPyt.fillers.length > 0 && (
+                        <div className="mb-4 space-y-2 border-b border-gray-200 pb-4">
+                          <p className="text-sm font-black text-black">등록된 필러</p>
+                          {selectedPyt.fillers.map((filler) => (
+                            <div key={filler.id} className="rounded bg-[#f6f3ee] px-3 py-2 text-xs font-bold text-black">
+                              <div>
+                                {selectedPyt.roundNo}-{filler.fillerRoundNo ?? '?'}차 / {filler.boxCount ?? '-'}박스 / {filler.teamsPerSlot ?? '-'}팀씩 / {filler.entryCount}/{filler.slotCount}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleCancelFiller(filler)}
+                                disabled={isSaving || filler.entryCount > 0}
+                                className="mt-2 h-8 w-full rounded-md border border-black bg-white text-xs font-black text-black transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-white"
+                              >
+                                {filler.entryCount > 0 ? '참가자 있음' : 'PYT 모집 복귀'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
                       <label className="block">
-                        <span className="mb-2 block text-sm font-black text-black">필러 슬롯 수</span>
+                        <span className="mb-2 block text-sm font-black text-black">필러 차수</span>
                         <input
                           type="number"
                           min={1}
-                          value={fillerSlotCount}
-                          onChange={(event) => setFillerSlotCount(Number(event.target.value))}
+                          value={fillerRoundNo}
+                          onChange={(event) => setFillerRoundNo(Number(event.target.value))}
+                          className="h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-black text-black outline-none focus:border-black"
+                        />
+                      </label>
+                      <label className="mt-3 block">
+                        <span className="mb-2 block text-sm font-black text-black">진행 박스 수</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={selectedPyt.boxCount ?? undefined}
+                          value={fillerBoxCount}
+                          onChange={(event) => setFillerBoxCount(Number(event.target.value))}
+                          className="h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-black text-black outline-none focus:border-black"
+                        />
+                      </label>
+                      <label className="mt-3 block">
+                        <span className="mb-2 block text-sm font-black text-black">슬롯당 팀 수</span>
+                        <input
+                          type="number"
+                          min={1}
+                          value={teamsPerFillerSlot}
+                          onChange={(event) => setTeamsPerFillerSlot(Number(event.target.value))}
                           className="h-11 w-full rounded-md border border-gray-300 px-3 text-sm font-black text-black outline-none focus:border-black"
                         />
                       </label>
                       <div className="mt-4 space-y-2 text-sm font-black text-black">
-                        <p>선택 팀 {selectedFillerSlotIds.length}개</p>
-                        <p>총액 {selectedFillerTotalPrice.toLocaleString()}원</p>
+                        <p>필러명 {selectedPyt.roundNo}-{fillerRoundNo}차</p>
+                        <p>남은 팀 {availableSlots.length}개</p>
+                        <p>계산 슬롯 {calculatedFillerSlotCount || '-'}개</p>
+                        <p>총액 {remainingTeamTotalPrice.toLocaleString()}원</p>
                         <p>슬롯가 {fillerPricePerSlot.toLocaleString()}원</p>
                       </div>
                       <button
                         type="button"
                         onClick={handleCreateFiller}
-                        disabled={isSaving || availableSlots.length === 0}
+                        disabled={isSaving || availableSlots.length === 0 || calculatedFillerSlotCount === 0}
                         className="mt-4 h-11 w-full rounded-md bg-[#d71920] text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
                       >
                         필러 전환

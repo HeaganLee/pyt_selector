@@ -21,6 +21,14 @@ public interface PytTeamSlotRepository extends JpaRepository<PytTeamSlot, Long> 
 
     long countByPytBreakId(Long pytBreakId);
 
+    @Query("""
+                select count(slot)
+                from PytTeamSlot slot
+                where slot.pytBreak.id = :pytId
+                  and (slot.fillerOnly is null or slot.fillerOnly = false)
+            """)
+    long countPublicByPytBreakId(@Param("pytId") Long pytId);
+
     long countByPytBreakIdAndSlotStatus(Long pytBreakId, PytTeamSlotStatus slotStatus);
 
     @Query("""
@@ -28,6 +36,7 @@ public interface PytTeamSlotRepository extends JpaRepository<PytTeamSlot, Long> 
                 from PytTeamSlot slot
                 where slot.pytBreak.id = :pytId
                   and slot.slotStatus = com.pyt.enums.PytTeamSlotStatus.AVAILABLE
+                  and (slot.fillerOnly is null or slot.fillerOnly = false)
             """)
     long countAvailableByPytBreakId(@Param("pytId") Long pytId);
 
@@ -40,4 +49,15 @@ public interface PytTeamSlotRepository extends JpaRepository<PytTeamSlot, Long> 
                 order by slot.id asc
             """)
     List<PytTeamSlot> findWithTeamAndBuyerUserByPytBreakId(@Param("pytId") Long pytId);
+
+    @Query("""
+                select slot
+                from PytTeamSlot slot
+                join fetch slot.team
+                left join fetch slot.buyerUser
+                where slot.pytBreak.id = :pytId
+                  and (slot.fillerOnly is null or slot.fillerOnly = false)
+                order by slot.id asc
+            """)
+    List<PytTeamSlot> findPublicWithTeamAndBuyerUserByPytBreakId(@Param("pytId") Long pytId);
 }

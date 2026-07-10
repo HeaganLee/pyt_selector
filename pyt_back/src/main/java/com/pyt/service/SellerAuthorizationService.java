@@ -15,6 +15,10 @@ public class SellerAuthorizationService {
     private final JwtTokenProvider jwtTokenProvider;
 
     public void validateSellerAuthorization(String authorizationHeader) {
+        validateSellerAuthorizationAndGetUserId(authorizationHeader);
+    }
+
+    public String validateSellerAuthorizationAndGetUserId(String authorizationHeader) {
         String token = resolveBearerToken(authorizationHeader);
 
         try {
@@ -23,6 +27,8 @@ public class SellerAuthorizationService {
             if (userRoleType != UserRoleType.SELLER) {
                 throw new AccessDeniedException("셀러 권한이 필요합니다.");
             }
+
+            return jwtTokenProvider.getUserId(token);
         } catch (AccessDeniedException e) {
             throw e;
         } catch (Exception e) {

@@ -11,4 +11,5 @@ public class PytTeamPriceReqDto {
 
     private Long teamId;
     private BigDecimal price;
+    private Boolean fillerOnly;
 }

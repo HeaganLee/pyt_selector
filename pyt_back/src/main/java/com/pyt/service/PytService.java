@@ -18,12 +18,15 @@ import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
 
+import com.pyt.config.JwtTokenProvider;
 import com.pyt.dto.pyt.req.PytCreateReqDto;
 import com.pyt.dto.pyt.req.PytFillerCreateReqDto;
 import com.pyt.dto.pyt.req.PytTeamPriceReqDto;
 import com.pyt.dto.pyt.req.PytUpdateReqDto;
 import com.pyt.dto.pyt.resp.PytCreateDataRespDto;
 import com.pyt.dto.pyt.resp.PytDetailRespDto;
+import com.pyt.dto.pyt.resp.PytFillerEntryRespDto;
+import com.pyt.dto.pyt.resp.PytFillerRespDto;
 import com.pyt.dto.pyt.resp.PytListItemRespDto;
 import com.pyt.dto.pyt.resp.PytProductOptionRespDto;
 import com.pyt.dto.pyt.resp.PytTeamRespDto;
@@ -35,6 +38,7 @@ import com.pyt.entities.CardProductOption;
 import com.pyt.entities.PytBreak;
 import com.pyt.entities.PytEntry;
 import com.pyt.entities.PytFiller;
+import com.pyt.entities.PytFillerEntry;
 import com.pyt.entities.PytFillerTeam;
 import com.pyt.entities.PytTeamSlot;
 import com.pyt.entities.SportsTeam;
@@ -45,9 +49,11 @@ import com.pyt.enums.PytEntryStatus;
 import com.pyt.enums.PytStatus;
 import com.pyt.enums.PytTeamSlotStatus;
 import com.pyt.enums.SportType;
+import com.pyt.enums.UserRoleType;
 import com.pyt.repository.CardProductOptionRepository;
 import com.pyt.repository.PytBreakRepository;
 import com.pyt.repository.PytEntryRepository;
+import com.pyt.repository.PytFillerEntryRepository;
 import com.pyt.repository.PytFillerRepository;
 import com.pyt.repository.PytFillerTeamRepository;
 import com.pyt.repository.PytTeamSlotRepository;
@@ -71,12 +77,14 @@ public class PytService {
     private final PytTeamSlotRepository pytTeamSlotRepository;
     private final PytEntryRepository pytEntryRepository;
     private final PytFillerRepository pytFillerRepository;
+    private final PytFillerEntryRepository pytFillerEntryRepository;
     private final PytFillerTeamRepository pytFillerTeamRepository;
     private final CardProductOptionRepository cardProductOptionRepository;
     private final SportsTeamRepository sportsTeamRepository;
     private final UserRepository userRepository;
     private final SellerAuthorizationService sellerAuthorizationService;
     private final XlsxWorkbookReader xlsxWorkbookReader;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional(readOnly = true)
     public List<PytListItemRespDto> getPytList() {
@@ -84,7 +92,7 @@ public class PytService {
                 .stream()
                 .map(pytBreak -> new PytListItemRespDto(
                         pytBreak,
-                        Math.toIntExact(pytTeamSlotRepository.countByPytBreakId(pytBreak.getId())),
+                        Math.toIntExact(pytTeamSlotRepository.countPublicByPytBreakId(pytBreak.getId())),
                         Math.toIntExact(pytTeamSlotRepository.countAvailableByPytBreakId(pytBreak.getId()))))
                 .toList();
     }
@@ -109,12 +117,12 @@ public class PytService {
         PytBreak pytBreak = pytBreakRepository.findDetailById(pytId)
                 .orElseThrow(() -> new IllegalArgumentException("PYT를 찾을 수 없습니다."));
 
-        List<PytTeamSlotRespDto> teamSlots = pytTeamSlotRepository.findWithTeamAndBuyerUserByPytBreakId(pytId)
+        List<PytTeamSlotRespDto> teamSlots = pytTeamSlotRepository.findPublicWithTeamAndBuyerUserByPytBreakId(pytId)
                 .stream()
                 .map(PytTeamSlotRespDto::new)
                 .toList();
 
-        return new PytDetailRespDto(pytBreak, teamSlots);
+        return new PytDetailRespDto(pytBreak, teamSlots, buildFillerResponses(pytId));
     }
 
     @Transactional(readOnly = true)
@@ -126,7 +134,16 @@ public class PytService {
     @Transactional(readOnly = true)
     public PytDetailRespDto getSellerPytDetail(String authorizationHeader, Long pytId) {
         sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
-        return getPytDetail(pytId);
+
+        PytBreak pytBreak = pytBreakRepository.findDetailById(pytId)
+                .orElseThrow(() -> new IllegalArgumentException("PYT를 찾을 수 없습니다."));
+
+        List<PytTeamSlotRespDto> teamSlots = pytTeamSlotRepository.findWithTeamAndBuyerUserByPytBreakId(pytId)
+                .stream()
+                .map(PytTeamSlotRespDto::new)
+                .toList();
+
+        return new PytDetailRespDto(pytBreak, teamSlots, buildFillerResponses(pytId));
     }
 
     @Transactional
@@ -149,7 +166,7 @@ public class PytService {
         pytBreak.setBreakUnitType(parseBreakUnitType(reqDto.getBreakUnitType()));
         pytBreak.setRoundNo(reqDto.getRoundNo());
         pytBreak.setBoxCount(reqDto.getBoxCount());
-        pytBreak.setFillerEnabled(Boolean.TRUE.equals(reqDto.getFillerEnabled()));
+        pytBreak.setFillerEnabled(true);
 
         if (reqDto.getTeamPrices() != null) {
             updateTeamSlotPrices(pytBreak, reqDto.getTeamPrices());
@@ -160,7 +177,7 @@ public class PytService {
                 .map(PytTeamSlotRespDto::new)
                 .toList();
 
-        return new PytDetailRespDto(pytBreak, teamSlots);
+        return new PytDetailRespDto(pytBreak, teamSlots, buildFillerResponses(pytId));
     }
 
     @Transactional
@@ -184,8 +201,11 @@ public class PytService {
 
     @Transactional
     public Long createPyt(String authorizationHeader, PytCreateReqDto reqDto) {
-        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
-        return createPytFromRequest(reqDto);
+        String sellerUserId = sellerAuthorizationService.validateSellerAuthorizationAndGetUserId(authorizationHeader);
+        User sellerUser = userRepository.findById(sellerUserId)
+                .orElseThrow(() -> new IllegalArgumentException("셀러 사용자를 찾을 수 없습니다."));
+
+        return createPytFromRequest(reqDto, sellerUser);
     }
 
     @Transactional(readOnly = true)
@@ -216,7 +236,9 @@ public class PytService {
             String authorizationHeader,
             Long cardProductOptionId,
             MultipartFile file) {
-        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+        String sellerUserId = sellerAuthorizationService.validateSellerAuthorizationAndGetUserId(authorizationHeader);
+        User sellerUser = userRepository.findById(sellerUserId)
+                .orElseThrow(() -> new IllegalArgumentException("셀러 사용자를 찾을 수 없습니다."));
         validatePytUploadFile(file);
 
         try {
@@ -227,7 +249,7 @@ public class PytService {
 
             for (ParsedPytUploadSheet parsedSheet : parsedSheets) {
                 PytCreateReqDto reqDto = parsedSheet.reqDto();
-                Long pytId = createPytFromRequest(reqDto);
+                Long pytId = createPytFromRequest(reqDto, sellerUser);
                 pytIds.add(pytId);
                 sheetNames.add(parsedSheet.sheetName());
                 items.add(toUploadItem(pytId, parsedSheet.sheetName(), reqDto));
@@ -276,7 +298,7 @@ public class PytService {
         return parsedSheets;
     }
 
-    private Long createPytFromRequest(PytCreateReqDto reqDto) {
+    private Long createPytFromRequest(PytCreateReqDto reqDto, User sellerUser) {
         validateCreateRequest(reqDto);
 
         CardProductOption cardProductOption = cardProductOptionRepository
@@ -287,11 +309,12 @@ public class PytService {
 
         PytBreak pytBreak = pytBreakRepository.save(new PytBreak(
                 cardProductOption,
+                sellerUser,
                 reqDto.getTitle(),
                 breakUnitType,
                 reqDto.getRoundNo(),
                 reqDto.getBoxCount(),
-                Boolean.TRUE.equals(reqDto.getFillerEnabled()),
+                true,
                 PytStatus.OPEN));
 
         List<PytTeamSlot> teamSlots = new ArrayList<>();
@@ -309,7 +332,8 @@ public class PytService {
                     pytBreak,
                     team,
                     teamPrice.getPrice(),
-                    PytTeamSlotStatus.AVAILABLE));
+                    PytTeamSlotStatus.AVAILABLE,
+                    teamPrice.getFillerOnly()));
         }
 
         pytTeamSlotRepository.saveAll(teamSlots);
@@ -335,6 +359,7 @@ public class PytService {
             int teamIdColumnIndex = -1;
             int teamNameColumnIndex = -1;
             int teamPriceColumnIndex = -1;
+            int fillerOnlyColumnIndex = -1;
 
             for (int cellIndex = 0; cellIndex < row.size(); cellIndex++) {
                 String header = normalizeHeader(row.get(cellIndex));
@@ -348,6 +373,11 @@ public class PytService {
                     teamNameColumnIndex = cellIndex;
                 } else if ("판매가".equals(header) || "price".equals(header) || "가격".equals(header)) {
                     teamPriceColumnIndex = cellIndex;
+                } else if ("필러용".equals(header)
+                        || "필러전용".equals(header)
+                        || "filler".equals(header)
+                        || "filleronly".equals(header)) {
+                    fillerOnlyColumnIndex = cellIndex;
                 }
             }
 
@@ -356,7 +386,8 @@ public class PytService {
                         rowIndex,
                         teamIdColumnIndex,
                         teamNameColumnIndex,
-                        teamPriceColumnIndex);
+                        teamPriceColumnIndex,
+                        fillerOnlyColumnIndex);
             }
         }
 
@@ -415,6 +446,9 @@ public class PytService {
             String teamIdValue = readCell(sheet, rowIndex, tableRange.teamIdColumnIndex());
             String teamNameValue = readCell(sheet, rowIndex, tableRange.teamNameColumnIndex());
             String priceValue = readCell(sheet, rowIndex, tableRange.teamPriceColumnIndex());
+            String fillerOnlyValue = tableRange.fillerOnlyColumnIndex() >= 0
+                    ? readCell(sheet, rowIndex, tableRange.fillerOnlyColumnIndex())
+                    : null;
             if (teamIdValue == null && teamNameValue == null && priceValue == null) {
                 continue;
             }
@@ -437,6 +471,7 @@ public class PytService {
             PytTeamPriceReqDto teamPrice = new PytTeamPriceReqDto();
             teamPrice.setTeamId(teamId);
             teamPrice.setPrice(price);
+            teamPrice.setFillerOnly(readOptionalBoolean(fillerOnlyValue));
             teamPrices.add(teamPrice);
             teamPriceTotal = teamPriceTotal.add(price);
         }
@@ -454,7 +489,7 @@ public class PytService {
         reqDto.setBreakUnitType(parseBreakUnitTypeLabel(breakUnitValue).name());
         reqDto.setRoundNo(roundNo);
         reqDto.setBoxCount(boxCount);
-        reqDto.setFillerEnabled(false);
+        reqDto.setFillerEnabled(true);
         reqDto.setTeamPrices(teamPrices);
 
         return reqDto;
@@ -538,6 +573,21 @@ public class PytService {
         }
     }
 
+    private Boolean readOptionalBoolean(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+
+        String normalizedValue = value.trim()
+                .toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s_\\-]+", "");
+
+        return switch (normalizedValue) {
+            case "true", "yes", "y", "1", "o", "ok", "필러", "필러용", "필러전용", "ㅇ" -> true;
+            default -> false;
+        };
+    }
+
     private BigDecimal readRequiredPrice(
             XlsxWorkbookReader.XlsxSheet sheet,
             int rowIndex,
@@ -602,7 +652,8 @@ public class PytService {
                             teamPrice.getTeamId(),
                             team == null ? "" : team.getName(),
                             team == null ? "" : team.getShortName(),
-                            teamPrice.getPrice().toPlainString());
+                            teamPrice.getPrice().toPlainString(),
+                            teamPrice.getFillerOnly());
                 })
                 .toList();
 
@@ -634,17 +685,24 @@ public class PytService {
             int headerRowIndex,
             int teamIdColumnIndex,
             int teamNameColumnIndex,
-            int teamPriceColumnIndex) {
+            int teamPriceColumnIndex,
+            int fillerOnlyColumnIndex) {
     }
 
     @Transactional
-    public void joinTeam(Long pytId, Long teamSlotId, String userId) {
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("사용자 ID가 필요합니다.");
-        }
+    public void joinTeam(String authorizationHeader, Long pytId, Long teamSlotId) {
+        String participantUserId = resolveParticipantUserId(authorizationHeader);
 
         PytBreak pytBreak = pytBreakRepository.findById(pytId)
                 .orElseThrow(() -> new IllegalArgumentException("PYT를 찾을 수 없습니다."));
+
+        User user = userRepository.findById(participantUserId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
+        validateNotPytOwner(pytBreak, user);
+        if (pytBreak.getPytStatus() != PytStatus.OPEN) {
+            throw new IllegalArgumentException("PYT 모집중 상태에서만 팀 직접 참가가 가능합니다.");
+        }
 
         PytTeamSlot teamSlot = pytTeamSlotRepository.findById(teamSlotId)
                 .orElseThrow(() -> new IllegalArgumentException("팀 슬롯을 찾을 수 없습니다."));
@@ -655,9 +713,9 @@ public class PytService {
         if (teamSlot.getSlotStatus() != PytTeamSlotStatus.AVAILABLE) {
             throw new IllegalArgumentException("구매 가능한 팀 슬롯이 아닙니다.");
         }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        if (Boolean.TRUE.equals(teamSlot.getFillerOnly())) {
+            throw new IllegalArgumentException("필러 전용 팀은 직접 참가할 수 없습니다.");
+        }
 
         teamSlot.setSlotStatus(PytTeamSlotStatus.SOLD);
         teamSlot.setBuyerUser(user);
@@ -672,6 +730,86 @@ public class PytService {
         // TODO: 전체 팀 판매 완료 후 PYT 상태를 SOLD_OUT/READY로 전환한다.
     }
 
+    private String resolveParticipantUserId(String authorizationHeader) {
+        String bearerPrefix = "Bearer ";
+        if (authorizationHeader != null && authorizationHeader.startsWith(bearerPrefix)) {
+            String token = authorizationHeader.substring(bearerPrefix.length()).trim();
+            if (!token.isBlank()) {
+                try {
+                    return jwtTokenProvider.getUserId(token);
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("유효하지 않은 인증 정보입니다.");
+                }
+            }
+        }
+
+        throw new IllegalArgumentException("로그인 후 참가할 수 있습니다.");
+    }
+
+    @Transactional
+    public Long joinFiller(String authorizationHeader, Long pytId, Long fillerId) {
+        String participantUserId = resolveParticipantUserId(authorizationHeader);
+
+        PytFiller filler = pytFillerRepository.findById(fillerId)
+                .orElseThrow(() -> new IllegalArgumentException("필러를 찾을 수 없습니다."));
+        PytBreak pytBreak = filler.getPytBreak();
+
+        if (!pytBreak.getId().equals(pytId)) {
+            throw new IllegalArgumentException("해당 PYT의 필러가 아닙니다.");
+        }
+        if (pytBreak.getPytStatus() != PytStatus.FILLER_OPEN) {
+            throw new IllegalArgumentException("필러 모집 중인 PYT만 필러 참가가 가능합니다.");
+        }
+        if (filler.getFillerStatus() != FillerStatus.OPEN) {
+            throw new IllegalArgumentException("참가 가능한 필러가 아닙니다.");
+        }
+
+        User user = userRepository.findById(participantUserId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+        validateNotPytOwner(pytBreak, user);
+
+        if (pytFillerEntryRepository.existsByPytFillerIdAndUserId(fillerId, participantUserId)) {
+            throw new IllegalArgumentException("이미 참가한 필러입니다.");
+        }
+
+        long entryCount = pytFillerEntryRepository.countByPytFillerId(fillerId);
+        if (entryCount >= filler.getSlotCount()) {
+            filler.setFillerStatus(FillerStatus.SOLD_OUT);
+            throw new IllegalArgumentException("필러가 마감되었습니다.");
+        }
+
+        int slotNo = Math.toIntExact(entryCount + 1);
+        PytFillerEntry entry = pytFillerEntryRepository.save(new PytFillerEntry(
+                filler,
+                user,
+                slotNo,
+                filler.getPricePerSlot(),
+                PytEntryStatus.PAID));
+
+        if (slotNo >= filler.getSlotCount()) {
+            filler.setFillerStatus(FillerStatus.SOLD_OUT);
+            boolean hasOtherOpenFiller = pytFillerRepository.existsByPytBreakIdAndIdNotAndFillerStatus(
+                    pytId,
+                    fillerId,
+                    FillerStatus.OPEN);
+            if (!hasOtherOpenFiller) {
+                pytBreak.setPytStatus(PytStatus.FILLER_SOLD_OUT);
+            }
+        }
+
+        return entry.getId();
+    }
+
+    private void validateNotPytOwner(PytBreak pytBreak, User user) {
+        if (pytBreak.getCreatedByUser() != null
+                && user.getId().equals(pytBreak.getCreatedByUser().getId())) {
+            throw new IllegalArgumentException("본인이 생성한 PYT에는 참가할 수 없습니다.");
+        }
+        if (pytBreak.getCreatedByUser() == null && user.getUserRoleType() == UserRoleType.SELLER) {
+            throw new IllegalArgumentException("생성자 정보가 없는 기존 PYT는 셀러 참가가 제한됩니다.");
+        }
+    }
+
     @Transactional
     public Long createFiller(
             String authorizationHeader,
@@ -682,46 +820,83 @@ public class PytService {
     }
 
     @Transactional
+    public void cancelFiller(String authorizationHeader, Long pytId, Long fillerId) {
+        sellerAuthorizationService.validateSellerAuthorization(authorizationHeader);
+
+        PytFiller filler = pytFillerRepository.findById(fillerId)
+                .orElseThrow(() -> new IllegalArgumentException("필러를 찾을 수 없습니다."));
+        PytBreak pytBreak = filler.getPytBreak();
+
+        if (!pytBreak.getId().equals(pytId)) {
+            throw new IllegalArgumentException("해당 PYT의 필러가 아닙니다.");
+        }
+        if (pytFillerEntryRepository.countByPytFillerId(fillerId) > 0) {
+            throw new IllegalArgumentException("필러 참가자가 있는 필러는 PYT 모집으로 되돌릴 수 없습니다.");
+        }
+
+        List<PytFillerTeam> fillerTeams = pytFillerTeamRepository.findByPytFillerIdOrderByIdAsc(fillerId);
+        for (PytFillerTeam fillerTeam : fillerTeams) {
+            PytTeamSlot teamSlot = fillerTeam.getPytTeamSlot();
+            if (teamSlot.getSlotStatus() == PytTeamSlotStatus.FILLER_TARGET) {
+                teamSlot.setSlotStatus(PytTeamSlotStatus.AVAILABLE);
+            }
+            teamSlot.setFillerTarget(false);
+        }
+
+        pytFillerTeamRepository.deleteAll(fillerTeams);
+        pytFillerRepository.delete(filler);
+
+        List<PytFiller> remainingFillers = pytFillerRepository.findByPytBreakIdOrderByIdAsc(pytId);
+        if (remainingFillers.isEmpty()) {
+            pytBreak.setPytStatus(PytStatus.OPEN);
+            return;
+        }
+
+        boolean hasOpenFiller = remainingFillers.stream()
+                .anyMatch(remainingFiller -> remainingFiller.getFillerStatus() == FillerStatus.OPEN);
+        pytBreak.setPytStatus(hasOpenFiller ? PytStatus.FILLER_OPEN : PytStatus.FILLER_SOLD_OUT);
+    }
+
+    @Transactional
     public Long createFiller(Long pytId, PytFillerCreateReqDto reqDto) {
         validateFillerCreateRequest(reqDto);
 
         PytBreak pytBreak = pytBreakRepository.findById(pytId)
                 .orElseThrow(() -> new IllegalArgumentException("PYT를 찾을 수 없습니다."));
 
-        if (!Boolean.TRUE.equals(pytBreak.getFillerEnabled())) {
-            throw new IllegalArgumentException("필러 생성이 비활성화된 PYT입니다.");
-        }
+        List<PytTeamSlot> teamSlots = pytTeamSlotRepository.findByPytBreakIdOrderByIdAsc(pytId)
+                .stream()
+                .filter(teamSlot -> teamSlot.getSlotStatus() == PytTeamSlotStatus.AVAILABLE)
+                .toList();
 
-        Set<Long> requestedTeamSlotIds = new HashSet<>(reqDto.getTeamSlotIds());
-        if (requestedTeamSlotIds.size() != reqDto.getTeamSlotIds().size()) {
-            throw new IllegalArgumentException("중복된 팀 슬롯이 있습니다.");
+        int teamsPerSlot = reqDto.getTeamsPerSlot();
+        int targetTeamCount = teamSlots.size();
+        if (targetTeamCount == 0) {
+            throw new IllegalArgumentException("필러 전환할 남은 팀이 없습니다.");
         }
-
-        List<PytTeamSlot> teamSlots = pytTeamSlotRepository.findAllById(requestedTeamSlotIds);
-        if (teamSlots.size() != requestedTeamSlotIds.size()) {
-            throw new IllegalArgumentException("선택한 팀 슬롯을 찾을 수 없습니다.");
+        if (targetTeamCount % teamsPerSlot != 0) {
+            throw new IllegalArgumentException("남은 팀 수가 슬롯당 팀 수로 나누어 떨어져야 합니다.");
         }
+        int slotCount = targetTeamCount / teamsPerSlot;
+        int fillerRoundNo = resolveFillerRoundNo(pytBreak.getId(), reqDto.getFillerRoundNo());
+        validateFillerBoxCount(pytBreak, reqDto.getBoxCount());
 
         BigDecimal totalTeamPrice = BigDecimal.ZERO;
         for (PytTeamSlot teamSlot : teamSlots) {
-            if (!pytBreak.getId().equals(teamSlot.getPytBreak().getId())) {
-                throw new IllegalArgumentException("해당 PYT의 팀 슬롯만 필러로 전환할 수 있습니다.");
-            }
-            if (teamSlot.getSlotStatus() != PytTeamSlotStatus.AVAILABLE) {
-                throw new IllegalArgumentException("구매 가능한 팀 슬롯만 필러로 전환할 수 있습니다.");
-            }
-
             totalTeamPrice = totalTeamPrice.add(teamSlot.getPrice());
         }
 
         BigDecimal pricePerSlot = totalTeamPrice
-                .divide(BigDecimal.valueOf(reqDto.getSlotCount()), 0, RoundingMode.CEILING)
+                .divide(BigDecimal.valueOf(slotCount), 0, RoundingMode.CEILING)
                 .setScale(2);
 
         PytFiller filler = pytFillerRepository.save(new PytFiller(
                 pytBreak,
-                pytBreak.getTitle() + " Filler",
-                reqDto.getSlotCount(),
+                buildFillerTitle(pytBreak, fillerRoundNo),
+                fillerRoundNo,
+                reqDto.getBoxCount(),
+                teamsPerSlot,
+                slotCount,
                 pricePerSlot,
                 totalTeamPrice,
                 FillerStatus.OPEN));
@@ -739,13 +914,69 @@ public class PytService {
         return filler.getId();
     }
 
+    private Integer resolveFillerRoundNo(Long pytId, Integer requestedFillerRoundNo) {
+        int fillerRoundNo = requestedFillerRoundNo == null
+                ? pytFillerRepository.findMaxFillerRoundNoByPytBreakId(pytId) + 1
+                : requestedFillerRoundNo;
+
+        if (pytFillerRepository.existsByPytBreakIdAndFillerRoundNo(pytId, fillerRoundNo)) {
+            throw new IllegalArgumentException("이미 등록된 필러 차수입니다.");
+        }
+
+        return fillerRoundNo;
+    }
+
+    private void validateFillerBoxCount(PytBreak pytBreak, Integer boxCount) {
+        if (boxCount == null || boxCount <= 0) {
+            throw new IllegalArgumentException("필러 진행 박스 수는 1 이상이어야 합니다.");
+        }
+
+        if (pytBreak.getBoxCount() == null) {
+            return;
+        }
+
+        long usedBoxCount = pytFillerRepository.sumBoxCountByPytBreakId(pytBreak.getId());
+        if (usedBoxCount + boxCount > pytBreak.getBoxCount()) {
+            throw new IllegalArgumentException("필러 진행 박스 수 합계가 PYT 박스 수를 초과할 수 없습니다.");
+        }
+    }
+
+    private String buildFillerTitle(PytBreak pytBreak, Integer fillerRoundNo) {
+        String roundLabel = pytBreak.getRoundNo() + "-" + fillerRoundNo + "차";
+        String title = (pytBreak.getTitle() + " " + roundLabel + " Filler").trim();
+        return title.length() > 200 ? title.substring(0, 200) : title;
+    }
+
+    private List<PytFillerRespDto> buildFillerResponses(Long pytId) {
+        return pytFillerRepository.findByPytBreakIdOrderByIdAsc(pytId)
+                .stream()
+                .map(filler -> {
+                    List<PytTeamSlotRespDto> targetTeamSlots = pytFillerTeamRepository
+                            .findByPytFillerIdOrderByIdAsc(filler.getId())
+                            .stream()
+                            .map(PytFillerTeam::getPytTeamSlot)
+                            .map(PytTeamSlotRespDto::new)
+                            .toList();
+                    List<PytFillerEntryRespDto> entries = pytFillerEntryRepository
+                            .findWithUserByPytFillerIdOrderBySlotNoAsc(filler.getId())
+                            .stream()
+                            .map(PytFillerEntryRespDto::new)
+                            .toList();
+
+                    return new PytFillerRespDto(filler, targetTeamSlots, entries);
+                })
+                .toList();
+    }
+
     private void updateTeamSlotPrices(PytBreak pytBreak, List<PytTeamPriceReqDto> teamPrices) {
         Map<Long, BigDecimal> pricesByTeamId = new HashMap<>();
+        Map<Long, Boolean> fillerOnlyByTeamId = new HashMap<>();
         for (PytTeamPriceReqDto teamPrice : teamPrices) {
             validateTeamPrice(teamPrice);
             if (pricesByTeamId.put(teamPrice.getTeamId(), teamPrice.getPrice()) != null) {
                 throw new IllegalArgumentException("중복된 팀 가격 정보가 있습니다.");
             }
+            fillerOnlyByTeamId.put(teamPrice.getTeamId(), Boolean.TRUE.equals(teamPrice.getFillerOnly()));
         }
 
         List<PytTeamSlot> teamSlots = pytTeamSlotRepository.findByPytBreakIdOrderByIdAsc(pytBreak.getId());
@@ -755,12 +986,15 @@ public class PytService {
                 throw new IllegalArgumentException("모든 팀 가격을 입력해주세요.");
             }
 
+            boolean nextFillerOnly = Boolean.TRUE.equals(fillerOnlyByTeamId.get(teamSlot.getTeam().getId()));
+            boolean fillerOnlyChanged = Boolean.TRUE.equals(teamSlot.getFillerOnly()) != nextFillerOnly;
             if (teamSlot.getSlotStatus() != PytTeamSlotStatus.AVAILABLE
-                    && teamSlot.getPrice().compareTo(nextPrice) != 0) {
-                throw new IllegalArgumentException("판매 완료 또는 필러 전환된 팀 가격은 수정할 수 없습니다.");
+                    && (teamSlot.getPrice().compareTo(nextPrice) != 0 || fillerOnlyChanged)) {
+                throw new IllegalArgumentException("판매 완료 또는 필러 전환된 팀은 가격이나 필러 전용 여부를 수정할 수 없습니다.");
             }
 
             teamSlot.setPrice(nextPrice);
+            teamSlot.setFillerOnly(nextFillerOnly);
         }
     }
 
@@ -800,16 +1034,14 @@ public class PytService {
         if (reqDto == null) {
             throw new IllegalArgumentException("필러 생성 요청이 필요합니다.");
         }
-        if (reqDto.getTeamSlotIds() == null || reqDto.getTeamSlotIds().isEmpty()) {
-            throw new IllegalArgumentException("필러 대상 팀 슬롯이 필요합니다.");
+        if (reqDto.getFillerRoundNo() != null && reqDto.getFillerRoundNo() <= 0) {
+            throw new IllegalArgumentException("필러 차수는 1 이상이어야 합니다.");
         }
-        for (Long teamSlotId : reqDto.getTeamSlotIds()) {
-            if (teamSlotId == null) {
-                throw new IllegalArgumentException("팀 슬롯 ID가 필요합니다.");
-            }
+        if (reqDto.getBoxCount() == null || reqDto.getBoxCount() <= 0) {
+            throw new IllegalArgumentException("필러 진행 박스 수는 1 이상이어야 합니다.");
         }
-        if (reqDto.getSlotCount() == null || reqDto.getSlotCount() <= 0) {
-            throw new IllegalArgumentException("필러 슬롯 수는 0보다 커야 합니다.");
+        if (reqDto.getTeamsPerSlot() == null || reqDto.getTeamsPerSlot() <= 0) {
+            throw new IllegalArgumentException("슬롯당 팀 수는 1 이상이어야 합니다.");
         }
     }
 

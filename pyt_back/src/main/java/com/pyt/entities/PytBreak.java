@@ -39,6 +39,13 @@ public class PytBreak extends BaseTimeEntity {
     private CardProductOption cardProductOption;
 
     /**
+     * PYT를 등록한 셀러
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by_user_id")
+    private User createdByUser;
+
+    /**
      * PYT 제목
      * 예: 2024 Topps Chrome Baseball Hobby 1 Case PYT #1
      */
@@ -70,7 +77,7 @@ public class PytBreak extends BaseTimeEntity {
      * 필러 사용 가능 여부
      */
     @Column(name = "filler_enabled", nullable = false)
-    private Boolean fillerEnabled = false;
+    private Boolean fillerEnabled = true;
 
     /**
      * PYT 상태
@@ -81,6 +88,7 @@ public class PytBreak extends BaseTimeEntity {
 
     public PytBreak(
             CardProductOption cardProductOption,
+            User createdByUser,
             String title,
             BreakUnitType breakUnitType,
             Integer roundNo,
@@ -88,11 +96,12 @@ public class PytBreak extends BaseTimeEntity {
             Boolean fillerEnabled,
             PytStatus pytStatus) {
         this.cardProductOption = cardProductOption;
+        this.createdByUser = createdByUser;
         this.title = title;
         this.breakUnitType = breakUnitType;
         this.roundNo = roundNo;
         this.boxCount = boxCount;
-        this.fillerEnabled = fillerEnabled;
+        this.fillerEnabled = true;
         this.pytStatus = pytStatus;
     }
 }

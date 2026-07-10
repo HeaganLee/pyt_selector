@@ -46,6 +46,25 @@ public class PytFiller extends BaseTimeEntity {
     private String title;
 
     /**
+     * PYT 안에서의 필러 차수
+     * 예: PYT 1차의 1번 필러 = 1-1차
+     */
+    @Column(name = "filler_round_no")
+    private Integer fillerRoundNo;
+
+    /**
+     * 이 필러가 진행하는 박스 수
+     */
+    @Column(name = "box_count")
+    private Integer boxCount;
+
+    /**
+     * 필러 참가 슬롯 하나가 가져가는 팀 수
+     */
+    @Column(name = "teams_per_slot")
+    private Integer teamsPerSlot;
+
+    /**
      * 필러 참가 슬롯 수
      * 예: 10명
      */
@@ -71,12 +90,18 @@ public class PytFiller extends BaseTimeEntity {
     public PytFiller(
             PytBreak pytBreak,
             String title,
+            Integer fillerRoundNo,
+            Integer boxCount,
+            Integer teamsPerSlot,
             Integer slotCount,
             BigDecimal pricePerSlot,
             BigDecimal totalTeamPrice,
             FillerStatus fillerStatus) {
         this.pytBreak = pytBreak;
         this.title = title;
+        this.fillerRoundNo = fillerRoundNo;
+        this.boxCount = boxCount;
+        this.teamsPerSlot = teamsPerSlot;
         this.slotCount = slotCount;
         this.pricePerSlot = pricePerSlot;
         this.totalTeamPrice = totalTeamPrice;

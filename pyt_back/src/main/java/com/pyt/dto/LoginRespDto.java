@@ -11,6 +11,8 @@ public class LoginRespDto {
 
     private String accessToken;
 
+    private String userId;
+
     private String email;
 
     private String name;

@@ -122,11 +122,6 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
               {pyt.sportType}
             </span>
 
-            {pyt.fillerEnabled && (
-              <span className="rounded-full border border-black bg-[#f6f3ee] px-3 py-1 text-xs font-black text-black">
-                Filler 가능
-              </span>
-            )}
           </div>
 
           <p className="text-xs font-black uppercase tracking-[0.25em] text-[#d71920]">

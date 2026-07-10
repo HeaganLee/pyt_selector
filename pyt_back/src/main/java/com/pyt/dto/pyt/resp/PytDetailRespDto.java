@@ -11,6 +11,8 @@ public class PytDetailRespDto {
         private Long id;
         private Long cardProductOptionId;
         private Long cardProductId;
+        private String createdByUserId;
+        private String createdByNickname;
         private String title;
 
         private String brandName;
@@ -29,15 +31,23 @@ public class PytDetailRespDto {
         private Boolean fillerEnabled;
 
         private List<PytTeamSlotRespDto> teamSlots;
+        private List<PytFillerRespDto> fillers;
 
         public PytDetailRespDto(
                         PytBreak pytBreak,
-                        List<PytTeamSlotRespDto> teamSlots) {
+                        List<PytTeamSlotRespDto> teamSlots,
+                        List<PytFillerRespDto> fillers) {
                 this.id = pytBreak.getId();
                 this.cardProductOptionId = pytBreak.getCardProductOption().getId();
                 this.cardProductId = pytBreak.getCardProductOption()
                                 .getCardProduct()
                                 .getId();
+                this.createdByUserId = pytBreak.getCreatedByUser() == null
+                                ? null
+                                : pytBreak.getCreatedByUser().getId();
+                this.createdByNickname = pytBreak.getCreatedByUser() == null
+                                ? null
+                                : pytBreak.getCreatedByUser().getNickname();
                 this.title = pytBreak.getTitle();
 
                 this.brandName = pytBreak.getCardProductOption()
@@ -68,8 +78,9 @@ public class PytDetailRespDto {
                 this.roundNo = pytBreak.getRoundNo();
                 this.boxCount = pytBreak.getBoxCount();
                 this.pytStatus = pytBreak.getPytStatus().name();
-                this.fillerEnabled = pytBreak.getFillerEnabled();
+                this.fillerEnabled = true;
 
                 this.teamSlots = teamSlots;
+                this.fillers = fillers;
         }
 }

@@ -203,6 +203,7 @@ export default function Header() {
 
   const handleLogout = () => {
     removeCookie('accessToken');
+    removeCookie('userId');
     removeCookie('email');
     removeCookie('name');
     removeCookie('nickname');

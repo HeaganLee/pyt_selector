@@ -10,5 +10,8 @@ import lombok.Setter;
 public class PytFillerCreateReqDto {
 
     private List<Long> teamSlotIds;
+    private Integer fillerRoundNo;
+    private Integer boxCount;
+    private Integer teamsPerSlot;
     private Integer slotCount;
 }

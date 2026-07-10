@@ -270,11 +270,6 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
             <span className="rounded-full border border-black bg-white px-3 py-1 text-xs font-black text-black">
               {pyt.sportType}
             </span>
-            {pyt.fillerEnabled && (
-              <span className="rounded-full border border-black bg-[#f6f3ee] px-3 py-1 text-xs font-black text-black">
-                Filler 가능
-              </span>
-            )}
           </div>
 
           <h3 className="text-xl font-black leading-tight text-black group-hover:text-[#d71920]">

@@ -38,6 +38,7 @@ interface PytUploadTeamPrice {
   teamName: string;
   shortName: string;
   price: string;
+  fillerOnly: boolean;
 }
 
 interface PytUploadItem {
@@ -65,8 +66,8 @@ interface DirectRoundForm {
   breakUnitType: BreakUnitType;
   roundNo: number;
   boxCount: number;
-  fillerEnabled: boolean;
   teamPrices: Record<number, string>;
+  fillerOnlyTeamIds: number[];
 }
 
 const templateSports = [
@@ -88,8 +89,8 @@ function createDirectRound(
     breakUnitType: 'FULL_CASE',
     roundNo,
     boxCount,
-    fillerEnabled: true,
     teamPrices: {},
+    fillerOnlyTeamIds: [],
   };
 }
 
@@ -237,6 +238,7 @@ export default function PytCreatePage() {
         ...round,
         boxCount: defaultBoxCount,
         teamPrices: {},
+        fillerOnlyTeamIds: [],
       }))
     );
     setDirectMessage('');
@@ -249,6 +251,18 @@ export default function PytCreatePage() {
     if (uploadFileInputRef.current) {
       uploadFileInputRef.current.value = '';
     }
+  };
+
+  const handleRoundFillerOnlyToggle = (localId: number, teamId: number) => {
+    updateRound(localId, (round) => {
+      const isSelected = round.fillerOnlyTeamIds.includes(teamId);
+      return {
+        ...round,
+        fillerOnlyTeamIds: isSelected
+          ? round.fillerOnlyTeamIds.filter((id) => id !== teamId)
+          : [...round.fillerOnlyTeamIds, teamId],
+      };
+    });
   };
 
   const updateRound = (
@@ -440,10 +454,10 @@ export default function PytCreatePage() {
             breakUnitType: round.breakUnitType,
             roundNo: round.roundNo,
             boxCount: round.boxCount,
-            fillerEnabled: round.fillerEnabled,
             teamPrices: filteredTeams.map((team) => ({
               teamId: team.id,
               price: Number(round.teamPrices[team.id]),
+              fillerOnly: round.fillerOnlyTeamIds.includes(team.id),
             })),
           }),
         });
@@ -747,6 +761,7 @@ export default function PytCreatePage() {
                               <th className="border-b border-black px-4 py-3 text-left text-xs font-black">팀 ID</th>
                               <th className="border-b border-black px-4 py-3 text-left text-xs font-black">팀</th>
                               <th className="border-b border-black px-4 py-3 text-right text-xs font-black">판매가</th>
+                              <th className="border-b border-black px-4 py-3 text-center text-xs font-black">필러 전용</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -766,6 +781,9 @@ export default function PytCreatePage() {
                                 </td>
                                 <td className="border-b border-gray-300 px-4 py-3 text-right text-sm font-black text-black">
                                   {Number(teamPrice.price).toLocaleString()}원
+                                </td>
+                                <td className="border-b border-gray-300 px-4 py-3 text-center text-sm font-black text-black">
+                                  {teamPrice.fillerOnly ? 'Y' : '-'}
                                 </td>
                               </tr>
                             ))}
@@ -878,25 +896,6 @@ export default function PytCreatePage() {
                     />
                   </label>
 
-                  <div>
-                    <p className="mb-2 text-sm font-black text-black">필러 사용 여부</p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateRound(round.localId, (prev) => ({
-                          ...prev,
-                          fillerEnabled: !prev.fillerEnabled,
-                        }))
-                      }
-                      className={`h-14 w-full rounded-md border border-black text-base font-black transition ${
-                        round.fillerEnabled
-                          ? 'bg-[#d71920] text-white'
-                          : 'bg-[#f1f1f1] text-black'
-                      }`}
-                    >
-                      {round.fillerEnabled ? '필러 사용' : '필러 미사용'}
-                    </button>
-                  </div>
                 </div>
 
                 <div className="flex flex-col gap-3 border-t border-black px-6 py-5 md:flex-row md:items-center md:justify-between">
@@ -919,19 +918,20 @@ export default function PytCreatePage() {
                         <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">Team</th>
                         <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">Sport</th>
                         <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">Price</th>
+                        <th className="border-b border-black px-5 py-4 text-center text-xs font-black uppercase tracking-wider">Filler</th>
                       </tr>
                     </thead>
 
                     <tbody>
                       {isLoading ? (
                         <tr>
-                          <td colSpan={3} className="border-b border-gray-300 px-5 py-8 text-center text-sm font-black text-gray-500">
+                          <td colSpan={4} className="border-b border-gray-300 px-5 py-8 text-center text-sm font-black text-gray-500">
                             팀 목록을 불러오는 중입니다.
                           </td>
                         </tr>
                       ) : filteredTeams.length === 0 ? (
                         <tr>
-                          <td colSpan={3} className="border-b border-gray-300 px-5 py-8 text-center text-sm font-black text-gray-500">
+                          <td colSpan={4} className="border-b border-gray-300 px-5 py-8 text-center text-sm font-black text-gray-500">
                             선택 가능한 팀이 없습니다.
                           </td>
                         </tr>
@@ -954,6 +954,14 @@ export default function PytCreatePage() {
                                 }
                                 placeholder="0"
                                 className="h-11 w-full max-w-[220px] rounded-md border border-gray-300 bg-white px-3 text-sm font-black text-black outline-none focus:border-black"
+                              />
+                            </td>
+                            <td className="border-b border-gray-300 px-5 py-4 text-center">
+                              <input
+                                type="checkbox"
+                                checked={round.fillerOnlyTeamIds.includes(team.id)}
+                                onChange={() => handleRoundFillerOnlyToggle(round.localId, team.id)}
+                                className="h-5 w-5 accent-[#d71920]"
                               />
                             </td>
                           </tr>

@@ -153,11 +153,11 @@ public class PytController {
 
     @PostMapping("/{pytId}/teams/{teamSlotId}/join")
     public ResponseEntity<?> joinTeam(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @PathVariable Long pytId,
-            @PathVariable Long teamSlotId,
-            @RequestParam String userId) {
+            @PathVariable Long teamSlotId) {
         try {
-            pytService.joinTeam(pytId, teamSlotId, userId);
+            pytService.joinTeam(authorizationHeader, pytId, teamSlotId);
             return ResponseEntity.ok().body("참가 완료");
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -172,6 +172,34 @@ public class PytController {
         try {
             Long fillerId = pytService.createFiller(authorizationHeader, pytId, reqDto);
             return ResponseEntity.ok(fillerId);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{pytId}/fillers/{fillerId}/join")
+    public ResponseEntity<?> joinFiller(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long pytId,
+            @PathVariable Long fillerId) {
+        try {
+            Long entryId = pytService.joinFiller(authorizationHeader, pytId, fillerId);
+            return ResponseEntity.ok(entryId);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/{pytId}/fillers/{fillerId}")
+    public ResponseEntity<?> cancelFiller(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long pytId,
+            @PathVariable Long fillerId) {
+        try {
+            pytService.cancelFiller(authorizationHeader, pytId, fillerId);
+            return ResponseEntity.ok().body("필러 취소 완료");
         } catch (AccessDeniedException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {

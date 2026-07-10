@@ -56,6 +56,11 @@ export default function LoginPage() {
       path: '/',
     });
 
+    Cookies.set('userId', result.userId ?? '', {
+      expires: 1,
+      path: '/',
+    });
+
     Cookies.set('email', result.email, {
       expires: 1,
       path: '/',

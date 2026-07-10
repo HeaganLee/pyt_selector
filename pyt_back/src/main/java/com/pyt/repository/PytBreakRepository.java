@@ -16,6 +16,7 @@ public interface PytBreakRepository extends JpaRepository<PytBreak, Long> {
                 from PytBreak pb
                 join fetch pb.cardProductOption cpo
                 join fetch cpo.cardProduct
+                left join fetch pb.createdByUser
                 order by pb.createdAt desc
             """)
     List<PytBreak> findAllWithProductOrderByCreatedAtDesc();
@@ -25,6 +26,7 @@ public interface PytBreakRepository extends JpaRepository<PytBreak, Long> {
                 from PytBreak pb
                 join fetch pb.cardProductOption cpo
                 join fetch cpo.cardProduct
+                left join fetch pb.createdByUser
                 where pb.id = :pytId
             """)
     Optional<PytBreak> findDetailById(@Param("pytId") Long pytId);

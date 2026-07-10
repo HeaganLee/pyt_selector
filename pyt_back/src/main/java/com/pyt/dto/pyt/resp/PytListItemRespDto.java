@@ -69,6 +69,6 @@ public class PytListItemRespDto {
                 this.totalTeamCount = totalTeamCount;
                 this.remainingTeamCount = remainingTeamCount;
 
-                this.fillerEnabled = pytBreak.getFillerEnabled();
+                this.fillerEnabled = true;
         }
 }

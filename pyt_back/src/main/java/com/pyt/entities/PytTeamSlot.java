@@ -75,14 +75,22 @@ public class PytTeamSlot extends BaseTimeEntity {
     @Column(name = "filler_target", nullable = false)
     private Boolean fillerTarget = false;
 
+    /**
+     * 공개 PYT 모집에는 보이지 않고 필러 생성에만 쓰는 팀 슬롯
+     */
+    @Column(name = "filler_only")
+    private Boolean fillerOnly = false;
+
     public PytTeamSlot(
             PytBreak pytBreak,
             SportsTeam team,
             BigDecimal price,
-            PytTeamSlotStatus slotStatus) {
+            PytTeamSlotStatus slotStatus,
+            Boolean fillerOnly) {
         this.pytBreak = pytBreak;
         this.team = team;
         this.price = price;
         this.slotStatus = slotStatus;
+        this.fillerOnly = Boolean.TRUE.equals(fillerOnly);
     }
 }
