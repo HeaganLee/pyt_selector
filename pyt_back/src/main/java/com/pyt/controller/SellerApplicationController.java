@@ -36,7 +36,7 @@ public class SellerApplicationController {
     }
 
     @GetMapping("/latest")
-    public ResponseEntity<?> getLatest(@RequestParam String email) {
+    public ResponseEntity<?> getLatest(@RequestParam(value = "email") String email) {
         try {
             SellerApplicationRespDto sellerApplication = sellerApplicationService.getLatestByEmail(email);
 
@@ -53,7 +53,7 @@ public class SellerApplicationController {
     @GetMapping("/admin")
     public ResponseEntity<?> getAdminApplications(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @RequestParam(required = false) SellerApplicationStatus status) {
+            @RequestParam(value = "status", required = false) SellerApplicationStatus status) {
         try {
             return ResponseEntity.ok(sellerApplicationService.getAdminApplications(authorizationHeader, status));
         } catch (AccessDeniedException e) {
@@ -66,7 +66,7 @@ public class SellerApplicationController {
     @PostMapping("/{sellerApplicationId}/approve")
     public ResponseEntity<?> approve(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long sellerApplicationId) {
+            @PathVariable(value = "sellerApplicationId") Long sellerApplicationId) {
         try {
             return ResponseEntity.ok(sellerApplicationService.approve(authorizationHeader, sellerApplicationId));
         } catch (AccessDeniedException e) {
@@ -79,7 +79,7 @@ public class SellerApplicationController {
     @PostMapping("/{sellerApplicationId}/cancel")
     public ResponseEntity<?> cancel(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long sellerApplicationId) {
+            @PathVariable(value = "sellerApplicationId") Long sellerApplicationId) {
         try {
             return ResponseEntity.ok(sellerApplicationService.cancel(authorizationHeader, sellerApplicationId));
         } catch (AccessDeniedException e) {

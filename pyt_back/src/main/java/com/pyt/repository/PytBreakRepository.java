@@ -11,6 +11,8 @@ import com.pyt.entities.PytBreak;
 
 public interface PytBreakRepository extends JpaRepository<PytBreak, Long> {
 
+    long countByCreatedByUserId(String userId);
+
     @Query("""
                 select distinct pb
                 from PytBreak pb

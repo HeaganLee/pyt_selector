@@ -140,9 +140,9 @@ public class ProductController {
     @PostMapping(value = "/admin/checklists", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createAdminChecklist(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @RequestParam("cardProductId") Long cardProductId,
+            @RequestParam(value = "cardProductId") Long cardProductId,
             @RequestParam(value = "sourceUrl", required = false) String sourceUrl,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam(value = "file") MultipartFile file) {
         try {
             return ResponseEntity.ok(productService.createAdminChecklistFromExcel(
                     authorizationHeader,
@@ -157,7 +157,8 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}")
-    public ProductDetailRespDto getProductDetail(@PathVariable Long productId) {
+    public ProductDetailRespDto getProductDetail(@PathVariable(value = "productId") Long productId) {
+
         return productService.getProductDetail(productId);
     }
 }

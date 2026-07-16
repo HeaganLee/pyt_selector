@@ -62,7 +62,7 @@ public class PytController {
     @GetMapping("/manage/{pytId}")
     public ResponseEntity<?> getSellerPytDetail(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId) {
+            @PathVariable(value = "pytId") Long pytId) {
         try {
             return ResponseEntity.ok(pytService.getSellerPytDetail(authorizationHeader, pytId));
         } catch (AccessDeniedException e) {
@@ -89,7 +89,7 @@ public class PytController {
     @PutMapping("/{pytId}")
     public ResponseEntity<?> updatePyt(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId,
+            @PathVariable(value = "pytId") Long pytId,
             @RequestBody PytUpdateReqDto reqDto) {
         try {
             return ResponseEntity.ok(pytService.updatePyt(authorizationHeader, pytId, reqDto));
@@ -103,7 +103,7 @@ public class PytController {
     @DeleteMapping("/{pytId}")
     public ResponseEntity<?> deletePyt(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId) {
+            @PathVariable(value = "pytId") Long pytId) {
         try {
             pytService.deletePyt(authorizationHeader, pytId);
             return ResponseEntity.ok().body("삭제 완료");
@@ -117,8 +117,8 @@ public class PytController {
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> createPytFromExcel(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @RequestParam("cardProductOptionId") Long cardProductOptionId,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam(value = "cardProductOptionId") Long cardProductOptionId,
+            @RequestParam(value = "file") MultipartFile file) {
         try {
             return ResponseEntity.ok(pytService.createPytFromExcel(authorizationHeader, cardProductOptionId, file));
         } catch (AccessDeniedException e) {
@@ -131,8 +131,8 @@ public class PytController {
     @PostMapping(value = "/upload-preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> previewPytExcel(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @RequestParam("cardProductOptionId") Long cardProductOptionId,
-            @RequestParam("file") MultipartFile file) {
+            @RequestParam(value = "cardProductOptionId") Long cardProductOptionId,
+            @RequestParam(value = "file") MultipartFile file) {
         try {
             return ResponseEntity.ok(pytService.previewPytExcel(authorizationHeader, cardProductOptionId, file));
         } catch (AccessDeniedException e) {
@@ -143,7 +143,7 @@ public class PytController {
     }
 
     @GetMapping("/{pytId}")
-    public ResponseEntity<?> getPytDetail(@PathVariable Long pytId) {
+    public ResponseEntity<?> getPytDetail(@PathVariable(value = "pytId") Long pytId) {
         try {
             return ResponseEntity.ok(pytService.getPytDetail(pytId));
         } catch (Exception e) {
@@ -154,8 +154,8 @@ public class PytController {
     @PostMapping("/{pytId}/teams/{teamSlotId}/join")
     public ResponseEntity<?> joinTeam(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId,
-            @PathVariable Long teamSlotId) {
+            @PathVariable(value = "pytId") Long pytId,
+            @PathVariable(value = "teamSlotId") Long teamSlotId) {
         try {
             pytService.joinTeam(authorizationHeader, pytId, teamSlotId);
             return ResponseEntity.ok().body("참가 완료");
@@ -167,7 +167,7 @@ public class PytController {
     @PostMapping("/{pytId}/fillers")
     public ResponseEntity<?> createFiller(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId,
+            @PathVariable(value = "pytId") Long pytId,
             @RequestBody PytFillerCreateReqDto reqDto) {
         try {
             Long fillerId = pytService.createFiller(authorizationHeader, pytId, reqDto);
@@ -182,8 +182,8 @@ public class PytController {
     @PostMapping("/{pytId}/fillers/{fillerId}/join")
     public ResponseEntity<?> joinFiller(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId,
-            @PathVariable Long fillerId) {
+            @PathVariable(value = "pytId") Long pytId,
+            @PathVariable(value = "fillerId") Long fillerId) {
         try {
             Long entryId = pytService.joinFiller(authorizationHeader, pytId, fillerId);
             return ResponseEntity.ok(entryId);
@@ -195,8 +195,8 @@ public class PytController {
     @DeleteMapping("/{pytId}/fillers/{fillerId}")
     public ResponseEntity<?> cancelFiller(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-            @PathVariable Long pytId,
-            @PathVariable Long fillerId) {
+            @PathVariable(value = "pytId") Long pytId,
+            @PathVariable(value = "fillerId") Long fillerId) {
         try {
             pytService.cancelFiller(authorizationHeader, pytId, fillerId);
             return ResponseEntity.ok().body("필러 취소 완료");
