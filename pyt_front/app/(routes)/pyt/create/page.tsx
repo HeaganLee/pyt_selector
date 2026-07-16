@@ -744,7 +744,7 @@ export default function PytCreatePage() {
                         </div>
                         <div>
                           <p className="text-xs font-black text-gray-500">총액</p>
-                          <p className="mt-1 text-sm font-black text-black">
+                          <p className="mt-1 whitespace-nowrap text-sm font-black tabular-nums text-black">
                             {Number(item.totalPrice).toLocaleString()}원
                           </p>
                         </div>
@@ -755,7 +755,7 @@ export default function PytCreatePage() {
                       </div>
 
                       <div className="overflow-x-auto">
-                        <table className="min-w-full border-collapse">
+                        <table className="min-w-[640px] border-collapse">
                           <thead>
                             <tr className="bg-black text-white">
                               <th className="border-b border-black px-4 py-3 text-left text-xs font-black">팀 ID</th>
@@ -779,7 +779,7 @@ export default function PytCreatePage() {
                                   </p>
                                   <p className="mt-1 text-xs font-bold text-gray-500">{teamPrice.teamName}</p>
                                 </td>
-                                <td className="border-b border-gray-300 px-4 py-3 text-right text-sm font-black text-black">
+                                <td className="whitespace-nowrap border-b border-gray-300 px-4 py-3 text-right text-sm font-black tabular-nums text-black">
                                   {Number(teamPrice.price).toLocaleString()}원
                                 </td>
                                 <td className="border-b border-gray-300 px-4 py-3 text-center text-sm font-black text-black">
@@ -906,13 +906,13 @@ export default function PytCreatePage() {
                     </p>
                   </div>
 
-                  <div className="rounded-md bg-black px-4 py-3 text-sm font-black text-white">
+                  <div className="whitespace-nowrap rounded-md bg-black px-4 py-3 text-sm font-black tabular-nums text-white">
                     총합 {getRoundTotalPrice(round).toLocaleString()}원
                   </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse">
+                  <table className="min-w-[760px] border-collapse">
                     <thead>
                       <tr className="bg-[#d71920] text-white">
                         <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">Team</th>

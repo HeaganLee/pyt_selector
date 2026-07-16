@@ -605,7 +605,7 @@ export default function PytManagePage() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-8 lg:grid-cols-[360px_1fr]">
+        <div className="mt-8 grid gap-8 xl:grid-cols-[340px_minmax(0,1fr)]">
           <section className="overflow-hidden rounded-[24px] border border-black bg-white shadow-[6px_6px_0_#111]">
             <div className="border-b border-black px-5 py-4">
               <h2 className="text-xl font-black text-black">PYT 목록</h2>
@@ -754,7 +754,7 @@ export default function PytManagePage() {
                   </div>
 
                   <div className="overflow-x-auto">
-                    <table className="min-w-full border-collapse">
+                    <table className="min-w-[720px] border-collapse">
                       <thead>
                         <tr className="bg-black text-white">
                           <th className="px-4 py-3 text-left text-xs font-black">팀</th>
@@ -829,29 +829,42 @@ export default function PytManagePage() {
                     </p>
                   </div>
 
-                  <div className="grid gap-5 p-5 lg:grid-cols-[1fr_240px]">
-                    <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid min-w-0 gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="max-h-[560px] min-w-0 space-y-2 overflow-y-auto pr-1">
                       {availableSlots.length === 0 ? (
                         <p className="text-sm font-black text-gray-500">필러 전환 가능한 팀이 없습니다.</p>
                       ) : (
                         availableSlots.map((slot) => (
                           <div
                             key={slot.id}
-                            className="flex items-center justify-between gap-3 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-bold text-black"
+                            className="rounded-md border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-black"
                           >
-                            <span>{slot.shortName || slot.teamName}</span>
-                            {slot.fillerOnly && (
-                              <span className="rounded bg-black px-2 py-1 text-[11px] font-black text-white">
-                                필러 전용
-                              </span>
-                            )}
-                            <span>{slot.price.toLocaleString()}원</span>
+                            <div className="flex min-w-0 items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <span className="block truncate text-base font-black">
+                                  {slot.shortName || slot.teamName}
+                                </span>
+                                {slot.shortName && slot.teamName !== slot.shortName && (
+                                  <span className="mt-1 block truncate text-xs font-bold text-gray-500">
+                                    {slot.teamName}
+                                  </span>
+                                )}
+                              </div>
+                              {slot.fillerOnly && (
+                                <span className="shrink-0 rounded-full border border-black bg-black px-2.5 py-1 text-[11px] font-black text-white">
+                                  필러 전용
+                                </span>
+                              )}
+                            </div>
+                            <span className="mt-2 block whitespace-nowrap text-base font-black tabular-nums text-black">
+                              {slot.price.toLocaleString()}원
+                            </span>
                           </div>
                         ))
                       )}
                     </div>
 
-                    <div className="rounded-md border border-black bg-white p-4">
+                    <div className="min-w-0 rounded-md border border-black bg-white p-4">
                       {selectedPyt.fillers.length > 0 && (
                         <div className="mb-4 space-y-2 border-b border-gray-200 pb-4">
                           <p className="text-sm font-black text-black">등록된 필러</p>
@@ -905,11 +918,26 @@ export default function PytManagePage() {
                         />
                       </label>
                       <div className="mt-4 space-y-2 text-sm font-black text-black">
-                        <p>필러명 {selectedPyt.roundNo}-{fillerRoundNo}차</p>
-                        <p>남은 팀 {availableSlots.length}개</p>
-                        <p>계산 슬롯 {calculatedFillerSlotCount || '-'}개</p>
-                        <p>총액 {remainingTeamTotalPrice.toLocaleString()}원</p>
-                        <p>슬롯가 {fillerPricePerSlot.toLocaleString()}원</p>
+                        <p className="flex justify-between gap-3">
+                          <span>필러명</span>
+                          <span className="whitespace-nowrap tabular-nums">{selectedPyt.roundNo}-{fillerRoundNo}차</span>
+                        </p>
+                        <p className="flex justify-between gap-3">
+                          <span>남은 팀</span>
+                          <span className="whitespace-nowrap tabular-nums">{availableSlots.length}개</span>
+                        </p>
+                        <p className="flex justify-between gap-3">
+                          <span>계산 슬롯</span>
+                          <span className="whitespace-nowrap tabular-nums">{calculatedFillerSlotCount || '-'}개</span>
+                        </p>
+                        <p className="flex justify-between gap-3">
+                          <span>총액</span>
+                          <span className="whitespace-nowrap tabular-nums">{remainingTeamTotalPrice.toLocaleString()}원</span>
+                        </p>
+                        <p className="flex justify-between gap-3">
+                          <span>슬롯가</span>
+                          <span className="whitespace-nowrap tabular-nums">{fillerPricePerSlot.toLocaleString()}원</span>
+                        </p>
                       </div>
                       <button
                         type="button"

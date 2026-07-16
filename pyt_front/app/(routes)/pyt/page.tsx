@@ -150,9 +150,9 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
           </div>
 
           <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between text-sm font-black">
+            <div className="mb-2 flex items-center justify-between gap-3 text-sm font-black">
               <span>진행률</span>
-              <span>
+              <span className="whitespace-nowrap tabular-nums">
                 {soldTeamCount} / {pyt.totalTeamCount} teams
               </span>
             </div>
@@ -164,7 +164,7 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
               />
             </div>
 
-            <p className="mt-3 text-sm font-bold text-gray-600">
+            <p className="mt-3 whitespace-nowrap text-sm font-bold tabular-nums text-gray-600">
               남은 팀 {pyt.remainingTeamCount}개
             </p>
           </div>

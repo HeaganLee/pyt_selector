@@ -294,9 +294,9 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
           </div>
 
           <div className="mt-5">
-            <div className="mb-2 flex items-center justify-between text-sm font-black">
+            <div className="mb-2 flex items-center justify-between gap-3 text-sm font-black">
               <span>진행률</span>
-              <span>
+              <span className="whitespace-nowrap tabular-nums">
                 {soldTeamCount} / {pyt.totalTeamCount} teams
               </span>
             </div>
@@ -305,7 +305,7 @@ function PytCard({ pyt }: { pyt: PytListItem }) {
               <div className="h-full bg-[#d71920]" style={{ width: `${progressPercent}%` }} />
             </div>
 
-            <p className="mt-3 text-sm font-bold text-gray-600">
+            <p className="mt-3 whitespace-nowrap text-sm font-bold tabular-nums text-gray-600">
               남은 팀 {pyt.remainingTeamCount}개
             </p>
           </div>
@@ -521,7 +521,7 @@ function ChecklistTab({
       )}
 
       <div className="overflow-x-auto bg-white">
-        <table className="min-w-full border-collapse">
+        <table className="min-w-[720px] border-collapse">
           <thead>
             <tr className="bg-[#d71920] text-white">
               <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
@@ -612,7 +612,7 @@ function TierTab({ product }: { product: ProductDetail }) {
               </div>
             ) : (
               <div className="overflow-x-auto bg-white">
-                <table className="min-w-full border-collapse">
+                <table className="min-w-[640px] border-collapse">
                   <thead>
                     <tr className="bg-[#d71920] text-white">
                       <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">

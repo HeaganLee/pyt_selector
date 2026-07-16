@@ -458,12 +458,12 @@ export default function PytDetailPage() {
           </div>
         </section>
 
-        <section className="mt-10 grid gap-5 md:grid-cols-4">
+        <section className="mt-10 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-black bg-white p-5 shadow-[4px_4px_0_#111]">
             <p className="text-xs font-black uppercase text-gray-500">
               {isFillerMode ? '필러 슬롯' : '전체 팀'}
             </p>
-            <p className="mt-2 text-3xl font-black text-black">
+            <p className="mt-2 whitespace-nowrap text-2xl font-black tabular-nums text-black sm:text-3xl">
               {isFillerMode ? totalFillerSlotCount : totalTeamCount}
             </p>
           </div>
@@ -472,7 +472,7 @@ export default function PytDetailPage() {
             <p className="text-xs font-black uppercase text-gray-500">
               {isFillerMode ? '필러 참가' : '판매 완료'}
             </p>
-            <p className="mt-2 text-3xl font-black text-black">
+            <p className="mt-2 whitespace-nowrap text-2xl font-black tabular-nums text-black sm:text-3xl">
               {isFillerMode ? fillerEntryCount : soldTeamCount}
             </p>
           </div>
@@ -481,7 +481,7 @@ export default function PytDetailPage() {
             <p className="text-xs font-black uppercase text-gray-500">
               {isFillerMode ? '남은 슬롯' : '남은 팀'}
             </p>
-            <p className="mt-2 text-3xl font-black text-[#d71920]">
+            <p className="mt-2 whitespace-nowrap text-2xl font-black tabular-nums text-[#d71920] sm:text-3xl">
               {isFillerMode ? remainingFillerSlotCount : availableTeamCount}
             </p>
           </div>
@@ -490,7 +490,7 @@ export default function PytDetailPage() {
             <p className="text-xs font-black uppercase text-gray-500">
               {isFillerMode ? '슬롯가' : '남은 금액'}
             </p>
-            <p className="mt-2 text-3xl font-black text-black">
+            <p className="mt-2 whitespace-nowrap text-2xl font-black tabular-nums text-black sm:text-3xl">
               {(isFillerMode ? displayFillerPrice : remainingPrice).toLocaleString()}
             </p>
           </div>
@@ -513,7 +513,7 @@ export default function PytDetailPage() {
           </div>
 
           <div className="overflow-x-auto bg-white">
-            <table className="min-w-full border-collapse">
+            <table className="min-w-[760px] border-collapse">
               <thead>
                 <tr className="bg-[#d71920] text-white">
                   <th className="border-b border-black px-5 py-4 text-left text-xs font-black uppercase tracking-wider">
@@ -545,7 +545,7 @@ export default function PytDetailPage() {
                       <p className="mt-1 text-xs font-bold text-gray-500">{slot.teamName}</p>
                     </td>
 
-                    <td className="border-b border-gray-300 px-5 py-4 text-sm font-black text-black">
+                    <td className="whitespace-nowrap border-b border-gray-300 px-5 py-4 text-sm font-black tabular-nums text-black">
                       {slot.price.toLocaleString()}원
                     </td>
 
@@ -616,8 +616,8 @@ export default function PytDetailPage() {
                       </div>
                     </div>
 
-                    <div className="grid gap-5 p-5 lg:grid-cols-[1fr_260px]">
-                      <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="grid min-w-0 gap-5 p-5 xl:grid-cols-[minmax(0,1fr)_280px]">
+                      <div className="grid min-w-0 gap-2 sm:grid-cols-2">
                         {Array.from({ length: filler.slotCount }, (_, index) => {
                           const slotNo = index + 1;
                           const entry = filler.entries.find((item) => item.slotNo === slotNo);
@@ -625,28 +625,34 @@ export default function PytDetailPage() {
                           return (
                             <div
                               key={`${filler.id}-${slotNo}`}
-                              className={`flex items-center justify-between rounded-md border px-3 py-2 text-sm font-bold ${
+                              className={`flex min-w-0 items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm font-bold ${
                                 entry
                                   ? 'border-black bg-black text-white'
                                   : 'border-gray-300 bg-white text-black'
                               }`}
                             >
-                              <span>{slotNo}번</span>
-                              <span>{entry?.userNickname || entry?.userId || '빈 슬롯'}</span>
+                              <span className="whitespace-nowrap tabular-nums">{slotNo}번</span>
+                              <span className="min-w-0 truncate text-right">{entry?.userNickname || entry?.userId || '빈 슬롯'}</span>
                             </div>
                           );
                         })}
                       </div>
 
-                      <div className="rounded-md border border-black bg-white p-4">
+                      <div className="min-w-0 rounded-md border border-black bg-white p-4">
                         <div className="space-y-2 text-sm font-black text-black">
                           <p>상태 {filler.fillerStatus}</p>
                           <p>진행 {pyt.roundNo}-{filler.fillerRoundNo ?? '?'}차</p>
                           <p>슬롯당 {filler.teamsPerSlot ?? '-'}팀</p>
                           <p>대상 팀 {filler.targetTeamCount}개</p>
                           <p>남은 슬롯 {filler.remainingSlotCount}개</p>
-                          <p>슬롯가 {filler.pricePerSlot.toLocaleString()}원</p>
-                          <p>대상 총액 {filler.totalTeamPrice.toLocaleString()}원</p>
+                          <p className="flex justify-between gap-3">
+                            <span>슬롯가</span>
+                            <span className="whitespace-nowrap tabular-nums">{filler.pricePerSlot.toLocaleString()}원</span>
+                          </p>
+                          <p className="flex justify-between gap-3">
+                            <span>대상 총액</span>
+                            <span className="whitespace-nowrap tabular-nums">{filler.totalTeamPrice.toLocaleString()}원</span>
+                          </p>
                         </div>
 
                         <button
