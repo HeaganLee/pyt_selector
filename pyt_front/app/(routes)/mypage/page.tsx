@@ -24,6 +24,7 @@ type MyPagePanel =
   | 'seller-info'
   | 'seller-accounts'
   | 'seller-sales'
+  | 'trade-create'
   | 'pyt-manage'
   | 'pyt-create';
 
@@ -43,6 +44,18 @@ interface SellerApplication {
   email: string;
   status: SellerApplicationStatus;
   createdAt: string;
+  storeName: string | null;
+  businessType: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  settlementBank: string | null;
+  settlementAccountHolder: string | null;
+  settlementAccountNumber: string | null;
+  shippingPolicy: string | null;
+  mainProductCategories: string | null;
+  salesChannelUrl: string | null;
+  experienceNote: string | null;
+  sellerPolicyAgreed: boolean | null;
 }
 
 interface SellerSummary {
@@ -58,9 +71,83 @@ interface PasswordForm {
   newPasswordConfirm: string;
 }
 
+interface SellerApplicationForm {
+  storeName: string;
+  businessType: 'PERSONAL' | 'BUSINESS';
+  contactName: string;
+  contactPhone: string;
+  settlementBank: string;
+  settlementAccountHolder: string;
+  settlementAccountNumber: string;
+  shippingPolicy: string;
+  mainProductCategories: string;
+  salesChannelUrl: string;
+  experienceNote: string;
+  sellerPolicyAgreed: boolean;
+}
+
+interface CardTradeForm {
+  title: string;
+  leagueName: string;
+  playerName: string;
+  teamName: string;
+  cardYear: string;
+  brandName: string;
+  cardNumber: string;
+  gradeCompany: string;
+  grade: string;
+  conditionLabel: string;
+  price: string;
+  shippingFee: string;
+  imageUrl: string;
+  description: string;
+}
+
 const cookieOptions = {
   expires: 1,
   path: '/',
+};
+
+const sellerBusinessTypeOptions: {
+  value: SellerApplicationForm['businessType'];
+  label: string;
+}[] = [
+  { value: 'PERSONAL', label: '개인 셀러' },
+  { value: 'BUSINESS', label: '사업자 셀러' },
+];
+
+const initialSellerApplicationForm: SellerApplicationForm = {
+  storeName: '',
+  businessType: 'PERSONAL',
+  contactName: '',
+  contactPhone: '',
+  settlementBank: '',
+  settlementAccountHolder: '',
+  settlementAccountNumber: '',
+  shippingPolicy: '',
+  mainProductCategories: '',
+  salesChannelUrl: '',
+  experienceNote: '',
+  sellerPolicyAgreed: false,
+};
+
+const tradeLeagueOptions = ['MLB', 'NBA', 'NFL', 'NHL', 'MLS'];
+
+const initialCardTradeForm: CardTradeForm = {
+  title: '',
+  leagueName: 'MLB',
+  playerName: '',
+  teamName: '',
+  cardYear: '',
+  brandName: '',
+  cardNumber: '',
+  gradeCompany: '',
+  grade: '',
+  conditionLabel: '',
+  price: '',
+  shippingFee: '0',
+  imageUrl: '',
+  description: '',
 };
 
 function getSellerApplicationStatusText(status: SellerApplicationStatus) {
@@ -89,6 +176,18 @@ function getRoleLabel(userRoleType: string) {
     default:
       return userRoleType || '회원';
   }
+}
+
+function getBusinessTypeLabel(value: string | null) {
+  return (
+    sellerBusinessTypeOptions.find((option) => option.value === value)?.label ??
+    value ??
+    '-'
+  );
+}
+
+function getDisplayText(value: string | null | undefined) {
+  return value && value.trim() ? value : '-';
 }
 
 function formatDate(value: string | null) {
@@ -192,11 +291,19 @@ export default function Mypage() {
   const [isSellerApplying, setIsSellerApplying] = useState(false);
   const [sellerApplicationMessage, setSellerApplicationMessage] = useState('');
   const [sellerApplicationError, setSellerApplicationError] = useState('');
+  const [sellerApplicationForm, setSellerApplicationForm] =
+    useState<SellerApplicationForm>(initialSellerApplicationForm);
   const [sellerSummary, setSellerSummary] = useState<SellerSummary | null>(
     null
   );
   const [isSellerSummaryLoading, setIsSellerSummaryLoading] = useState(false);
   const [sellerSummaryError, setSellerSummaryError] = useState('');
+  const [cardTradeForm, setCardTradeForm] =
+    useState<CardTradeForm>(initialCardTradeForm);
+  const [isCardTradeSaving, setIsCardTradeSaving] = useState(false);
+  const [cardTradeMessage, setCardTradeMessage] = useState('');
+  const [cardTradeError, setCardTradeError] = useState('');
+  const [createdTradeId, setCreatedTradeId] = useState<number | null>(null);
 
   const accessToken = authState.accessToken;
   const userRoleType = profile?.userRoleType ?? authState.userRoleType;
@@ -204,6 +311,8 @@ export default function Mypage() {
   const canApplySeller = userRoleType === 'USER';
   const hasPendingSellerApplication =
     sellerApplication?.status === 'PENDING';
+  const shouldShowSellerApplicationForm =
+    canApplySeller && !hasPendingSellerApplication;
   const displayName =
     profile?.nickname || profile?.name || profile?.email || '회원';
   const profileImageUrl = profileImagePreview || profile?.profileImageUrl || '';
@@ -284,7 +393,7 @@ export default function Mypage() {
   }, [accessToken, authState.isChecked]);
 
   useEffect(() => {
-    if (!accessToken || !canApplySeller || !profile?.email) return;
+    if (!accessToken || !canApplySeller) return;
 
     let isMounted = true;
 
@@ -293,11 +402,9 @@ export default function Mypage() {
         setIsSellerApplicationLoading(true);
         setSellerApplicationError('');
 
-        const response = await fetch(
-          `${API_BASE_URL}/seller-applications/latest?email=${encodeURIComponent(
-            profile.email
-          )}`
-        );
+        const response = await fetch(`${API_BASE_URL}/seller-applications/latest/me`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
 
         if (response.status === 204) {
           if (isMounted) {
@@ -331,7 +438,7 @@ export default function Mypage() {
     return () => {
       isMounted = false;
     };
-  }, [accessToken, canApplySeller, profile?.email]);
+  }, [accessToken, canApplySeller]);
 
   useEffect(() => {
     if (!accessToken || !isSeller) return;
@@ -393,7 +500,20 @@ export default function Mypage() {
     router.push('/');
   };
 
-  const handleSellerApply = async () => {
+  const updateSellerApplicationField = <
+    FieldName extends keyof SellerApplicationForm,
+  >(
+    fieldName: FieldName,
+    value: SellerApplicationForm[FieldName]
+  ) => {
+    setSellerApplicationForm((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+  };
+
+  const handleSellerApply = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setSellerApplicationMessage('');
     setSellerApplicationError('');
 
@@ -402,13 +522,24 @@ export default function Mypage() {
       return;
     }
 
+    if (!sellerApplicationForm.sellerPolicyAgreed) {
+      setSellerApplicationError('셀러 운영 기준에 동의해주세요.');
+      return;
+    }
+
     try {
       setIsSellerApplying(true);
 
       const response = await fetch(`${API_BASE_URL}/seller-applications`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: profile.email }),
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: profile.email,
+          ...sellerApplicationForm,
+        }),
       });
 
       if (!response.ok) {
@@ -418,6 +549,7 @@ export default function Mypage() {
       const data = (await response.json()) as SellerApplication;
       setSellerApplication(data);
       setSellerApplicationMessage('셀러 신청이 접수되었습니다.');
+      setSellerApplicationForm(initialSellerApplicationForm);
     } catch (error) {
       console.error(error);
       setSellerApplicationError(
@@ -427,6 +559,71 @@ export default function Mypage() {
       );
     } finally {
       setIsSellerApplying(false);
+    }
+  };
+
+  const updateCardTradeField = <FieldName extends keyof CardTradeForm>(
+    fieldName: FieldName,
+    value: CardTradeForm[FieldName]
+  ) => {
+    setCardTradeForm((prev) => ({
+      ...prev,
+      [fieldName]: value,
+    }));
+  };
+
+  const handleCardTradeCreate = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCardTradeMessage('');
+    setCardTradeError('');
+    setCreatedTradeId(null);
+
+    const price = Number(cardTradeForm.price);
+    const shippingFee = Number(cardTradeForm.shippingFee || 0);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      setCardTradeError('판매가를 0원보다 크게 입력해주세요.');
+      return;
+    }
+
+    if (!Number.isFinite(shippingFee) || shippingFee < 0) {
+      setCardTradeError('배송비는 0원 이상으로 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsCardTradeSaving(true);
+
+      const response = await fetch(`${API_BASE_URL}/trades`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...cardTradeForm,
+          price,
+          shippingFee,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      const tradeId = Number(await response.json());
+      setCreatedTradeId(tradeId);
+      setCardTradeMessage('카드 거래 상품이 등록되었습니다.');
+      setCardTradeForm(initialCardTradeForm);
+    } catch (error) {
+      console.error(error);
+      setCardTradeError(
+        error instanceof Error && error.message
+          ? error.message
+          : '카드 거래 상품 등록에 실패했습니다.'
+      );
+    } finally {
+      setIsCardTradeSaving(false);
     }
   };
 
@@ -823,35 +1020,328 @@ export default function Mypage() {
           )}
         </div>
       ) : (
-        <div className="p-6">
-          <div className="flex flex-col gap-4 rounded-md border border-gray-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-5 p-6">
+          <div className="rounded-md border border-gray-200 p-5">
             <div>
               <p className="text-sm font-black text-gray-500">셀러 상태</p>
-              <p className="mt-2 text-2xl font-black text-black">
-                {sellerStatusText}
-              </p>
+              <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <p className="text-2xl font-black text-black">
+                  {sellerStatusText}
+                </p>
+                {sellerApplication?.createdAt && (
+                  <p className="text-sm font-bold text-gray-500">
+                    신청일 {formatDate(sellerApplication.createdAt)}
+                  </p>
+                )}
+              </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleSellerApply}
-              disabled={
-                isSellerApplying ||
-                isSellerApplicationLoading ||
-                hasPendingSellerApplication
-              }
-              className="h-12 rounded-md bg-[#d71920] px-6 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
-            >
-              {isSellerApplying
-                ? '신청 중...'
-                : hasPendingSellerApplication
-                  ? '신청 완료'
-                  : '셀러 신청'}
-            </button>
           </div>
 
+          {sellerApplication && (
+            <div className="rounded-md border border-gray-200 p-5">
+              <p className="text-sm font-black text-gray-500">최근 신청 정보</p>
+              <div className="mt-4 grid gap-4 md:grid-cols-2">
+                <InfoRow
+                  label="스토어명"
+                  value={getDisplayText(sellerApplication.storeName)}
+                />
+                <InfoRow
+                  label="판매자 유형"
+                  value={getBusinessTypeLabel(sellerApplication.businessType)}
+                />
+                <InfoRow
+                  label="담당자"
+                  value={getDisplayText(sellerApplication.contactName)}
+                />
+                <InfoRow
+                  label="연락처"
+                  value={getDisplayText(sellerApplication.contactPhone)}
+                />
+                <InfoRow
+                  label="판매 카테고리"
+                  value={getDisplayText(
+                    sellerApplication.mainProductCategories
+                  )}
+                />
+                <InfoRow
+                  label="외부 판매 채널"
+                  value={
+                    sellerApplication.salesChannelUrl ? (
+                      <a
+                        href={sellerApplication.salesChannelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="break-all text-[#d71920] underline"
+                      >
+                        {sellerApplication.salesChannelUrl}
+                      </a>
+                    ) : (
+                      '-'
+                    )
+                  }
+                />
+              </div>
+            </div>
+          )}
+
+          {shouldShowSellerApplicationForm && (
+            <form
+              onSubmit={handleSellerApply}
+              className="rounded-md border border-gray-200 p-5"
+            >
+              <div className="mb-5">
+                <p className="text-sm font-black text-gray-500">
+                  셀러 등록 신청
+                </p>
+                <h3 className="mt-2 text-xl font-black text-black">
+                  카드 거래 셀러 정보
+                </h3>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    스토어명
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={100}
+                    value={sellerApplicationForm.storeName}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'storeName',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    판매자 유형
+                  </label>
+                  <select
+                    value={sellerApplicationForm.businessType}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'businessType',
+                        event.target.value as SellerApplicationForm['businessType']
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  >
+                    {sellerBusinessTypeOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    담당자명
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={50}
+                    value={sellerApplicationForm.contactName}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'contactName',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    연락처
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={30}
+                    value={sellerApplicationForm.contactPhone}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'contactPhone',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    정산 은행
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={50}
+                    value={sellerApplicationForm.settlementBank}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'settlementBank',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    예금주
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={50}
+                    value={sellerApplicationForm.settlementAccountHolder}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'settlementAccountHolder',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    정산 계좌번호
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={80}
+                    value={sellerApplicationForm.settlementAccountNumber}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'settlementAccountNumber',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-black text-black">
+                    판매 예정 카테고리
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={300}
+                    value={sellerApplicationForm.mainProductCategories}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'mainProductCategories',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-black text-black">
+                    외부 판매 채널 URL
+                  </label>
+                  <input
+                    type="url"
+                    maxLength={500}
+                    value={sellerApplicationForm.salesChannelUrl}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'salesChannelUrl',
+                        event.target.value
+                      )
+                    }
+                    className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-black text-black">
+                    배송 정책
+                  </label>
+                  <textarea
+                    required
+                    maxLength={500}
+                    rows={4}
+                    value={sellerApplicationForm.shippingPolicy}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'shippingPolicy',
+                        event.target.value
+                      )
+                    }
+                    className="w-full resize-none rounded-md border border-gray-300 bg-[#f1f1f1] px-4 py-3 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="mb-2 block text-sm font-black text-black">
+                    카드 거래 경험 및 운영 계획
+                  </label>
+                  <textarea
+                    required
+                    maxLength={1000}
+                    rows={5}
+                    value={sellerApplicationForm.experienceNote}
+                    onChange={(event) =>
+                      updateSellerApplicationField(
+                        'experienceNote',
+                        event.target.value
+                      )
+                    }
+                    className="w-full resize-none rounded-md border border-gray-300 bg-[#f1f1f1] px-4 py-3 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+                  />
+                </div>
+              </div>
+
+              <label className="mt-5 flex gap-3 rounded-md border border-gray-200 p-4 text-sm font-bold text-black">
+                <input
+                  type="checkbox"
+                  checked={sellerApplicationForm.sellerPolicyAgreed}
+                  onChange={(event) =>
+                    updateSellerApplicationField(
+                      'sellerPolicyAgreed',
+                      event.target.checked
+                    )
+                  }
+                  className="mt-1 h-4 w-4 accent-[#d71920]"
+                />
+                카드 상태를 정확히 고지하고, 실제 사진과 배송 추적 정보를 제공하겠습니다.
+              </label>
+
+              <button
+                type="submit"
+                disabled={isSellerApplying || isSellerApplicationLoading}
+                className="mt-5 h-12 rounded-md bg-[#d71920] px-6 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
+              >
+                {isSellerApplying
+                  ? '신청 중...'
+                  : sellerApplication?.status === 'REJECTED'
+                    ? '셀러 재신청'
+                    : '셀러 신청'}
+              </button>
+            </form>
+          )}
+
           {(sellerApplicationMessage || sellerApplicationError) && (
-            <div className="mt-4">
+            <div>
               {sellerApplicationMessage && (
                 <p className="text-sm font-bold text-[#d71920]">
                   {sellerApplicationMessage}
@@ -886,6 +1376,271 @@ export default function Mypage() {
           </p>
         </div>
       </div>
+    </section>
+  );
+
+  const renderTradeCreatePanel = () => (
+    <section className="rounded-md border border-black bg-white">
+      <div className="border-b border-black px-6 py-5">
+        <p className="text-sm font-black text-[#d71920]">카드 거래</p>
+        <h2 className="mt-2 text-2xl font-black text-black">상품 등록</h2>
+      </div>
+
+      <form onSubmit={handleCardTradeCreate} className="p-6">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-black text-black">
+              상품명
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={200}
+              value={cardTradeForm.title}
+              onChange={(event) =>
+                updateCardTradeField('title', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              리그
+            </label>
+            <select
+              value={cardTradeForm.leagueName}
+              onChange={(event) =>
+                updateCardTradeField('leagueName', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            >
+              {tradeLeagueOptions.map((leagueName) => (
+                <option key={leagueName} value={leagueName}>
+                  {leagueName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              선수명
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={100}
+              value={cardTradeForm.playerName}
+              onChange={(event) =>
+                updateCardTradeField('playerName', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              팀명
+            </label>
+            <input
+              type="text"
+              maxLength={100}
+              value={cardTradeForm.teamName}
+              onChange={(event) =>
+                updateCardTradeField('teamName', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              연도
+            </label>
+            <input
+              type="text"
+              maxLength={20}
+              value={cardTradeForm.cardYear}
+              onChange={(event) =>
+                updateCardTradeField('cardYear', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              브랜드
+            </label>
+            <input
+              type="text"
+              maxLength={100}
+              value={cardTradeForm.brandName}
+              onChange={(event) =>
+                updateCardTradeField('brandName', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              카드 번호
+            </label>
+            <input
+              type="text"
+              maxLength={50}
+              value={cardTradeForm.cardNumber}
+              onChange={(event) =>
+                updateCardTradeField('cardNumber', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              그레이딩 회사
+            </label>
+            <input
+              type="text"
+              maxLength={50}
+              value={cardTradeForm.gradeCompany}
+              onChange={(event) =>
+                updateCardTradeField('gradeCompany', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              등급
+            </label>
+            <input
+              type="text"
+              maxLength={30}
+              value={cardTradeForm.grade}
+              onChange={(event) =>
+                updateCardTradeField('grade', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              카드 상태
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={80}
+              value={cardTradeForm.conditionLabel}
+              onChange={(event) =>
+                updateCardTradeField('conditionLabel', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              판매가
+            </label>
+            <input
+              type="number"
+              required
+              min="1"
+              value={cardTradeForm.price}
+              onChange={(event) =>
+                updateCardTradeField('price', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-black text-black">
+              배송비
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={cardTradeForm.shippingFee}
+              onChange={(event) =>
+                updateCardTradeField('shippingFee', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-black text-black">
+              이미지 URL
+            </label>
+            <input
+              type="url"
+              maxLength={500}
+              value={cardTradeForm.imageUrl}
+              onChange={(event) =>
+                updateCardTradeField('imageUrl', event.target.value)
+              }
+              className="h-12 w-full rounded-md border border-gray-300 bg-[#f1f1f1] px-4 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-black text-black">
+              설명
+            </label>
+            <textarea
+              maxLength={2000}
+              rows={5}
+              value={cardTradeForm.description}
+              onChange={(event) =>
+                updateCardTradeField('description', event.target.value)
+              }
+              className="w-full resize-none rounded-md border border-gray-300 bg-[#f1f1f1] px-4 py-3 text-sm font-bold text-black outline-none transition focus:border-black focus:bg-white"
+            />
+          </div>
+        </div>
+
+        <button
+          type="submit"
+          disabled={isCardTradeSaving}
+          className="mt-5 h-12 rounded-md bg-[#d71920] px-6 text-sm font-black text-white transition hover:bg-black disabled:cursor-not-allowed disabled:bg-gray-400"
+        >
+          {isCardTradeSaving ? '등록 중...' : '카드 거래 등록'}
+        </button>
+
+        {(cardTradeMessage || cardTradeError) && (
+          <div className="mt-4">
+            {cardTradeMessage && (
+              <p className="text-sm font-bold text-[#d71920]">
+                {cardTradeMessage}
+                {createdTradeId && (
+                  <>
+                    {' '}
+                    <Link
+                      href={`/trades/${createdTradeId}`}
+                      className="underline"
+                    >
+                      상세 보기
+                    </Link>
+                  </>
+                )}
+              </p>
+            )}
+            {cardTradeError && (
+              <p className="text-sm font-bold text-[#d71920]">
+                {cardTradeError}
+              </p>
+            )}
+          </div>
+        )}
+      </form>
     </section>
   );
 
@@ -940,6 +1695,8 @@ export default function Mypage() {
         return renderSellerAccountsPanel();
       case 'seller-sales':
         return renderSellerSalesPanel();
+      case 'trade-create':
+        return renderTradeCreatePanel();
       case 'pyt-manage':
         return renderEmbeddedPytPanel('manage');
       case 'pyt-create':
@@ -1012,6 +1769,12 @@ export default function Mypage() {
                         onClick={() => setActivePanel('seller-accounts')}
                       >
                         계좌 관리
+                      </SidebarButton>
+                      <SidebarButton
+                        isActive={activePanel === 'trade-create'}
+                        onClick={() => setActivePanel('trade-create')}
+                      >
+                        카드 거래 등록
                       </SidebarButton>
                       <SidebarButton
                         isActive={activePanel === 'seller-sales'}

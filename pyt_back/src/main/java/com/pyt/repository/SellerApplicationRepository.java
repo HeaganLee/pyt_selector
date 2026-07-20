@@ -13,6 +13,8 @@ public interface SellerApplicationRepository extends JpaRepository<SellerApplica
 
     boolean existsByUserIdAndApplicationStatus(String userId, SellerApplicationStatus applicationStatus);
 
+    Optional<SellerApplication> findTopByUserIdOrderByCreatedAtDesc(String userId);
+
     Optional<SellerApplication> findTopByUserEmailOrderByCreatedAtDesc(String email);
 
     @EntityGraph(attributePaths = "user")

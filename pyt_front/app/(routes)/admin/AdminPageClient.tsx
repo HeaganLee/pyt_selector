@@ -35,6 +35,18 @@ interface SellerApplication {
   email: string;
   status: SellerApplicationStatus;
   createdAt: string;
+  storeName: string | null;
+  businessType: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  settlementBank: string | null;
+  settlementAccountHolder: string | null;
+  settlementAccountNumber: string | null;
+  shippingPolicy: string | null;
+  mainProductCategories: string | null;
+  salesChannelUrl: string | null;
+  experienceNote: string | null;
+  sellerPolicyAgreed: boolean | null;
 }
 
 interface ProductOptionForm {
@@ -199,6 +211,11 @@ const statusClasses: Record<SellerApplicationStatus, string> = {
   REJECTED: 'border-gray-300 bg-gray-100 text-gray-700',
 };
 
+const businessTypeLabels: Record<string, string> = {
+  PERSONAL: '개인 셀러',
+  BUSINESS: '사업자 셀러',
+};
+
 function isAdminRole(userRoleType: string) {
   return userRoleType === 'ADMIN' || userRoleType === 'MANAGER';
 }
@@ -241,6 +258,16 @@ function getFormattedDate(dateValue: string) {
     hour: '2-digit',
     minute: '2-digit',
   }).format(new Date(dateValue));
+}
+
+function getDisplayText(value: string | null | undefined) {
+  return value && value.trim() ? value : '-';
+}
+
+function getBusinessTypeLabel(value: string | null | undefined) {
+  if (!value) return '-';
+
+  return businessTypeLabels[value] ?? value;
 }
 
 function createEmptyProductOption(boxType: BoxType = 'HOBBY'): ProductOptionForm {
@@ -1853,7 +1880,7 @@ export default function AdminPageClient() {
                 <thead className="bg-gray-100 text-xs font-black uppercase text-gray-500">
                   <tr>
                     <th className="whitespace-nowrap px-5 py-3">신청 ID</th>
-                    <th className="whitespace-nowrap px-5 py-3">이메일</th>
+                    <th className="whitespace-nowrap px-5 py-3">신청자</th>
                     <th className="whitespace-nowrap px-5 py-3">상태</th>
                     <th className="whitespace-nowrap px-5 py-3">신청일</th>
                     <th className="whitespace-nowrap px-5 py-3">처리</th>
@@ -1881,28 +1908,87 @@ export default function AdminPageClient() {
                   ) : (
                     applications.map((application) => (
                       <tr key={application.id} className="text-sm">
-                        <td className="whitespace-nowrap px-5 py-4 font-black text-black">
+                        <td className="whitespace-nowrap px-5 py-4 align-top font-black text-black">
                           #{application.id}
                         </td>
-                        <td className="px-5 py-4">
-                          <div className="font-bold text-black">
-                            {application.email}
+                        <td className="min-w-[420px] px-5 py-4 align-top">
+                          <div className="font-black text-black">
+                            {getDisplayText(application.storeName)}
                           </div>
                           <div className="mt-1 break-all text-xs font-semibold text-gray-500">
-                            {application.userId}
+                            {application.email} / {application.userId}
+                          </div>
+                          <div className="mt-3 grid gap-2 text-xs font-bold text-gray-700 md:grid-cols-2">
+                            <div>
+                              <span className="text-gray-500">유형 </span>
+                              {getBusinessTypeLabel(application.businessType)}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">연락처 </span>
+                              {getDisplayText(application.contactName)} /{' '}
+                              {getDisplayText(application.contactPhone)}
+                            </div>
+                            <div>
+                              <span className="text-gray-500">정산 </span>
+                              {getDisplayText(application.settlementBank)} /{' '}
+                              {getDisplayText(
+                                application.settlementAccountHolder
+                              )}
+                            </div>
+                            <div className="break-all">
+                              <span className="text-gray-500">계좌 </span>
+                              {getDisplayText(
+                                application.settlementAccountNumber
+                              )}
+                            </div>
+                            <div className="md:col-span-2">
+                              <span className="text-gray-500">카테고리 </span>
+                              {getDisplayText(
+                                application.mainProductCategories
+                              )}
+                            </div>
+                            <div className="md:col-span-2">
+                              <span className="text-gray-500">배송 </span>
+                              {getDisplayText(application.shippingPolicy)}
+                            </div>
+                            <div className="md:col-span-2">
+                              <span className="text-gray-500">운영 계획 </span>
+                              {getDisplayText(application.experienceNote)}
+                            </div>
+                            <div className="break-all md:col-span-2">
+                              <span className="text-gray-500">외부 채널 </span>
+                              {application.salesChannelUrl ? (
+                                <a
+                                  href={application.salesChannelUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[#d71920] underline"
+                                >
+                                  {application.salesChannelUrl}
+                                </a>
+                              ) : (
+                                '-'
+                              )}
+                            </div>
+                            <div className="md:col-span-2">
+                              <span className="text-gray-500">운영 기준 </span>
+                              {application.sellerPolicyAgreed
+                                ? '동의'
+                                : '미동의'}
+                            </div>
                           </div>
                         </td>
-                        <td className="whitespace-nowrap px-5 py-4">
+                        <td className="whitespace-nowrap px-5 py-4 align-top">
                           <span
                             className={`inline-flex rounded-md border px-2.5 py-1 text-xs font-black ${statusClasses[application.status]}`}
                           >
                             {statusLabels[application.status]}
                           </span>
                         </td>
-                        <td className="whitespace-nowrap px-5 py-4 font-semibold text-gray-700">
+                        <td className="whitespace-nowrap px-5 py-4 align-top font-semibold text-gray-700">
                           {getFormattedDate(application.createdAt)}
                         </td>
-                        <td className="whitespace-nowrap px-5 py-4">
+                        <td className="whitespace-nowrap px-5 py-4 align-top">
                           {application.status === 'PENDING' ? (
                             <div className="flex gap-2">
                               <button

@@ -27,9 +27,31 @@ public class SellerApplicationController {
     private final SellerApplicationService sellerApplicationService;
 
     @PostMapping
-    public ResponseEntity<?> apply(@RequestBody SellerApplicationCreateReqDto reqDto) {
+    public ResponseEntity<?> apply(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @RequestBody SellerApplicationCreateReqDto reqDto) {
         try {
-            return ResponseEntity.ok(sellerApplicationService.apply(reqDto));
+            return ResponseEntity.ok(sellerApplicationService.apply(authorizationHeader, reqDto));
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping("/latest/me")
+    public ResponseEntity<?> getMyLatest(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+        try {
+            SellerApplicationRespDto sellerApplication = sellerApplicationService.getLatestMine(authorizationHeader);
+
+            if (sellerApplication == null) {
+                return ResponseEntity.noContent().build();
+            }
+
+            return ResponseEntity.ok(sellerApplication);
+        } catch (AccessDeniedException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

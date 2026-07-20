@@ -21,6 +21,7 @@ import com.pyt.enums.ActiveStatus;
 import com.pyt.enums.UserRoleType;
 import com.pyt.repository.PytBreakRepository;
 import com.pyt.repository.PytEntryRepository;
+import com.pyt.repository.CardTradePurchaseRepository;
 import com.pyt.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PytBreakRepository pytBreakRepository;
     private final PytEntryRepository pytEntryRepository;
+    private final CardTradePurchaseRepository cardTradePurchaseRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -128,13 +130,20 @@ public class AuthService {
         String sellerUserId = user.getId();
         long pytBreakCount = pytBreakRepository.countByCreatedByUserId(sellerUserId);
         long pytSaleCount = pytEntryRepository.countPaidSalesBySellerUserId(sellerUserId);
-        BigDecimal totalSalesAmount = pytEntryRepository.sumPaidSalesAmountBySellerUserId(sellerUserId);
+        long cardTradeSaleCount = cardTradePurchaseRepository.countPaidSalesBySellerUserId(sellerUserId);
+        BigDecimal pytSalesAmount = pytEntryRepository.sumPaidSalesAmountBySellerUserId(sellerUserId);
+        BigDecimal cardTradeSalesAmount = cardTradePurchaseRepository.sumPaidSalesAmountBySellerUserId(sellerUserId);
+        BigDecimal totalSalesAmount = normalizeAmount(pytSalesAmount).add(normalizeAmount(cardTradeSalesAmount));
 
         return new SellerSummaryRespDto(
                 pytBreakCount,
                 pytSaleCount,
-                0,
-                totalSalesAmount == null ? BigDecimal.ZERO : totalSalesAmount);
+                cardTradeSaleCount,
+                totalSalesAmount);
+    }
+
+    private BigDecimal normalizeAmount(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
     }
 
     private User getCurrentActiveUser(String authorizationHeader) {

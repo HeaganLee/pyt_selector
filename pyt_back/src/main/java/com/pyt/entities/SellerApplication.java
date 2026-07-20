@@ -37,8 +37,70 @@ public class SellerApplication extends BaseTimeEntity {
     @Column(name = "application_status", nullable = false, length = 30)
     private SellerApplicationStatus applicationStatus;
 
-    public SellerApplication(User user, SellerApplicationStatus applicationStatus) {
+    @Column(name = "store_name", length = 100)
+    private String storeName;
+
+    @Column(name = "business_type", length = 30)
+    private String businessType;
+
+    @Column(name = "contact_name", length = 50)
+    private String contactName;
+
+    @Column(name = "contact_phone", length = 30)
+    private String contactPhone;
+
+    @Column(name = "settlement_bank", length = 50)
+    private String settlementBank;
+
+    @Column(name = "settlement_account_holder", length = 50)
+    private String settlementAccountHolder;
+
+    @Column(name = "settlement_account_number", length = 80)
+    private String settlementAccountNumber;
+
+    @Column(name = "shipping_policy", length = 500)
+    private String shippingPolicy;
+
+    @Column(name = "main_product_categories", length = 300)
+    private String mainProductCategories;
+
+    @Column(name = "sales_channel_url", length = 500)
+    private String salesChannelUrl;
+
+    @Column(name = "experience_note", length = 1000)
+    private String experienceNote;
+
+    @Column(name = "seller_policy_agreed")
+    private Boolean sellerPolicyAgreed;
+
+    public SellerApplication(
+            User user,
+            SellerApplicationStatus applicationStatus,
+            String storeName,
+            String businessType,
+            String contactName,
+            String contactPhone,
+            String settlementBank,
+            String settlementAccountHolder,
+            String settlementAccountNumber,
+            String shippingPolicy,
+            String mainProductCategories,
+            String salesChannelUrl,
+            String experienceNote,
+            Boolean sellerPolicyAgreed) {
         this.user = user;
         this.applicationStatus = applicationStatus;
+        this.storeName = storeName;
+        this.businessType = businessType;
+        this.contactName = contactName;
+        this.contactPhone = contactPhone;
+        this.settlementBank = settlementBank;
+        this.settlementAccountHolder = settlementAccountHolder;
+        this.settlementAccountNumber = settlementAccountNumber;
+        this.shippingPolicy = shippingPolicy;
+        this.mainProductCategories = mainProductCategories;
+        this.salesChannelUrl = salesChannelUrl;
+        this.experienceNote = experienceNote;
+        this.sellerPolicyAgreed = sellerPolicyAgreed;
     }
 }
